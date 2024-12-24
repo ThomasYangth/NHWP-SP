@@ -23,6 +23,7 @@ from abc import ABC, abstractmethod
 # If USE_GPU is true (as defined in Config.py), we will use cupy
 if USE_GPU:
     import cupy as cp
+    print("cupy loaded.")
 
 # ncp behaves as numpy if UES_GPU is false, and cupy if USE_GPU is true.
 ncp = cp if USE_GPU else np
@@ -45,9 +46,9 @@ def callMMA(*args):
     t1 = time()
 
     args = [str(x) for x in args]
-    print(f"callMMA: wolframscript {spscript} "+" ".join([f'"{x}"' for x in args]), end=" ")
+    print(f"callMMA: {' '.join(MMA_CALLER)} {spscript} "+" ".join([f'"{x}"' for x in args]), end=" ")
 
-    output = runcmd(["wolframscript", spscript] + args)
+    output = runcmd(MMA_CALLER + [spscript] + args)
     output = output.decode("utf-8")
     if output.startswith("ERR::"):
         raise Exception(output[5:])

@@ -1,0 +1,5 @@
+Datas/
+slurmlogs/
+*.slurm
+*.pyc
+*/__pycache__/

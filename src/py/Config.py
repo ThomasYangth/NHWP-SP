@@ -1,8 +1,11 @@
+USE_GPU = True
 
 #FFMPEG_PATH = "E:\\Programs\\ffmpeg-2024-04-04-git-478d97f303-full_build\\bin\\ffmpeg.exe"
-FFMPEG_PATH = '/Users/tianhua/Downloads/ffmpeg'
-USE_GPU = False
+#FFMPEG_PATH = '/Users/tianhua/Downloads/ffmpeg'
+FFMPEG_PATH = "/home/ty1475/.conda/envs/py/bin/ffmpeg"
 MMASCRIPT_PATH = "../src/mma/"
+MMA_CALLER = ["wolframscript"]
+MMA_CALLER = ["math", "-script"]
 
 FONTSIZE = 8
 SINGLE_FIGSIZE = (3.2, 2.4)

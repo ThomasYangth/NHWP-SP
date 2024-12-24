@@ -10,6 +10,7 @@ from .HamClass import LatticeHam, HamModel
 # If USE_GPU is true (as defined in Config.py), we will use cupy
 if USE_GPU:
     import cupy as cp
+    print("cupy loaded.")
 
 def cast_numpy (arr):
     if USE_GPU and isinstance(arr, cp.ndarray):
@@ -362,11 +363,11 @@ class EvoDat2D:
         if not isfile(FFMPEG_PATH):
             raise Exception(f"ffmpeg path '{FFMPEG_PATH}' is invalid!")
         
-        fig = plt.figure(figsize=SQUARE_SHOW_FIGSIZE, layout="constrained")
+        fig = plt.figure(figsize=SQUARE_SHOW_FIGSIZE)
 
         # The figure will be split into two parts, 
         map_ax = plt.axes([0.1, 0.5, 0.9, 0.45])
-        norm_ax = plt.axes([0.1, 0.05, 0.8, 0.42])
+        norm_ax = plt.axes([0.1, 0.05, 0.8, 0.38])
 
         # lp_init plots things on the lower panel that are persistent throughout the animation
         nmp = lower_panel_init(norm_ax)
@@ -406,7 +407,7 @@ class EvoDat2D:
 
         def getClSz (dat):
             flatdat = dat.flatten()
-            szs = 1/((1-np.log(np.abs(flatdat)+1e-10))**point_scaling_exponent)
+            szs = max_sz/((1-np.log(np.abs(flatdat)+1e-10))**point_scaling_exponent)
             if color_as_phase:
                 cls = cmap(np.angle(flatdat)/(2*np.pi)+0.5)
             else:

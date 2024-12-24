@@ -36,5 +36,7 @@ def run2D():
     }
 
     model = GenHN2D(tsp, ts0, tsm, "2Da")
+    sz1 = 150
+    sz2 = 70
 
-    plot_and_compare_2D_Edge(model, 50, 50, 20, force_evolve=True)
+    plot_and_compare_2D_Edge(model, sz1, sz2, 20, force_evolve=False, Ns=sz1)

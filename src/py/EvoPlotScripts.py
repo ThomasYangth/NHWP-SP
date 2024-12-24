@@ -350,7 +350,7 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve= False, outpu
     plt.savefig(FName0+"_VEC.pdf")
     plt.close()
 
-def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, edge="x-", k = 0, ipdepth = 0, kspan = 0.1, dT=0.2, force_evolve = False, addname = ""):
+def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 10, edge="x-", k = 0, ipdepth = 0, kspan = 0.1, dT=0.2, force_evolve = False, addname = ""):
 
     tkdT = 0.25
 
@@ -420,7 +420,6 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, edge="x-", k = 0, ipdep
     xmax = min(L1d-1, ip_perp+int(5/kspan))
 
     # Sample Ns points of k
-    Ns = 10
     ksamp = np.arange(Ns)*(2*np.pi)/Ns
     ksamp_zls = np.zeros((Ns, xmax-xmin+1), dtype=complex)
     for ki,k in enumerate(ksamp):

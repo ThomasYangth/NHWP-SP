@@ -86,7 +86,7 @@ def rk45(func, t_span, y0, h0=0.1, tol=1e-6, ncp = np):
     while t < tf:
         if t + h > tf:
             h = tf - t
-        t, y, h = rk45_step(func, t, y, h, tol)
+        t, y, h = rk45_step(func, t, y, h, tol, ncp=ncp)
         t_vals.append(t)
         y_vals.append(y)
     

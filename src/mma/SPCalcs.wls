@@ -16,8 +16,24 @@ If[MemberQ[$Path,dir],0,AppendTo[$Path,dir]];
 (* ::Text:: *)
 (*If there is no input parameters, or -help is called, we output the help string.*)
 
+(* ::Text:: *)
+(*Different systems use different conventions for the command line arguments. For wolframscript, the command line arguments are encoded in $ScriptCommandLine, with index starting at 2. For math -script, arguments are in $CommandLine, with index starting at 4.*)
 
-If[Length[$ScriptCommandLine]==1||$ScriptCommandLine[[2]]=="-help",
+(* ::Text:: *)
+(*Use this for math -script*)
+
+CommandLine = $CommandLine;
+StartIndex = 4;
+
+(* ::Text:: *)
+(*Use this for wolframscript*)
+
+(*CommandLine = $ScriptCommandLine;
+StartIndex = 2;*)
+
+If[Length[CommandLine]<=StartIndex||CommandLine[[2]]=="-help",
+	Print["Got Command Line:"];
+	Print[CommandLine];
 	Print[Import["README.txt"]];
 	Exit[]
 ]
@@ -51,7 +67,7 @@ k = 0;
 ClearAll[z,l,f];
 
 ToMat[f_]:=If[Head@f===List,f,{{f}}];
-Hamexp = ToMat[ToExpression[$ScriptCommandLine[[2]]]];
+Hamexp = ToMat[ToExpression[CommandLine[[StartIndex]]]];
 InitHam[]:=If[dim==1,
 	Hmat[z_]:=Evaluate@Hamexp;Heq[z_,l_]:=Evaluate@CharacteristicPolynomial[Hmat[z],l],
 	If[NumericQ[k],
@@ -225,20 +241,20 @@ If[AllTrue[xpairs, #>0&, 2],
 )
 
 
-nowind = 3;
+nowind = StartIndex + 1;
 
 While[True,
-If[Length[$ScriptCommandLine]<nowind,Print["Specify function!"];Break[]];
-Switch[$ScriptCommandLine[[nowind]],
-	"-dim",dim=ToExpression[$ScriptCommandLine[[nowind+1]]];nowind=nowind+2,
-	"-prec",prec=ToExpression[$ScriptCommandLine[[nowind+1]]];nowind=nowind+2,
-	"-edge",edge=$ScriptCommandLine[[nowind+1]];nowind=nowind+2,
-	"-v",v=ToExpression[$ScriptCommandLine[[nowind+1]]];nowind=nowind+2,
-	"-k",k=ToExpression[$ScriptCommandLine[[nowind+1]]];nowind=nowind+2,
+If[Length[CommandLine]<nowind,Print["Specify function!"];Break[]];
+Switch[CommandLine[[nowind]],
+	"-dim",dim=ToExpression[CommandLine[[nowind+1]]];nowind=nowind+2,
+	"-prec",prec=ToExpression[CommandLine[[nowind+1]]];nowind=nowind+2,
+	"-edge",edge=CommandLine[[nowind+1]];nowind=nowind+2,
+	"-v",v=ToExpression[CommandLine[[nowind+1]]];nowind=nowind+2,
+	"-k",k=ToExpression[CommandLine[[nowind+1]]];nowind=nowind+2,
 	"-sps",Fsps[False];Break[],
 	"-spflow",Fsps[True];Break[],
-	"-lv",Flv[Flatten[ToExpression/@($ScriptCommandLine[[nowind+1;;]])]];Break[],
-	"-hk",Fhk[Flatten[ToExpression/@($ScriptCommandLine[[nowind+1;;]])]];Break[],
-	"-ef",Efun[ToExpression[$ScriptCommandLine[[nowind+1]]],ToExpression[$ScriptCommandLine[[nowind+2]]]];Break[],
-	_,Print["No matching command '"<>$ScriptCommandLine[[nowind]]<>"'!"];Break[]]
+	"-lv",Flv[Flatten[ToExpression/@(CommandLine[[nowind+1;;]])]];Break[],
+	"-hk",Fhk[Flatten[ToExpression/@(CommandLine[[nowind+1;;]])]];Break[],
+	"-ef",Efun[ToExpression[CommandLine[[nowind+1]]],ToExpression[CommandLine[[nowind+2]]]];Break[],
+	_,Print["No matching command '"<>CommandLine[[nowind]]<>"'!"];Break[]]
 ]

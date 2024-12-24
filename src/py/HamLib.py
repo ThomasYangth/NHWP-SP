@@ -1,4 +1,4 @@
-from HamClass.HamClass import LatticeHam, LatticeTerm, HamModel
+from .HamClass import LatticeHam, LatticeTerm, HamModel
 import numpy as np
 
 def ETI3D (M, l, B, d, a, bc):

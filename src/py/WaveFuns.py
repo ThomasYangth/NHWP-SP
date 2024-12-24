@@ -1,6 +1,16 @@
 import numpy as np
 
 def GaussianWave (bcs, center, radius, k = None, intvec = None):
+    """
+    Generate a Gaussian wave packet.
+
+    Parameters:
+    bcs: list of ints, dimensionality of the lattice.
+    center: tuple of ints, position of the center of the packet.
+    radius: radius of the wave packet.
+    k: Defualt [0]*dim. If provided, should be a tuple of numbers, giving the wave vector k.
+    intvec: Default [1]. If provided, will tensor product the spatial wave function with the internal wave function.
+    """
     dim = len(bcs)
     if k is None:
         k = [0]*dim

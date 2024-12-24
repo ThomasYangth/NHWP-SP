@@ -95,8 +95,12 @@ Module[{z,w,mdz,mdw,zarg,fz,fw,fd0,rt0,eps,tol},
 	(*See Supplementary Materials for detailed derivations*)
 	rt0=(fd0[2,0]-fd0[0,2]v^2/z0^2-2I fd0[1,1]v/z0)/fd0[0,1]+I v/z0^2;
 	zarg=Sqrt[I/rt0]*dir*Sqrt[-idir]; (*Select the correct direction*)
-	mdz=eps*CubeRoot[tol/
-		Abs[Heq[z0+eps*zarg,H0+idir*I*eps^2/2-I v( eps zarg/z0-(eps zarg/z0)^2/2)]]
+	(* If we are not even at a saddle point, just set mdz=0 *)
+	mdz = If[Abs[fd0[1,0]]<eps^2*Abs[fd0[0,1]],
+		eps*CubeRoot[tol/
+			Abs[Heq[z0+eps*zarg,H0+idir*I*eps^2/2-I v( eps zarg/z0-(eps zarg/z0)^2/2)]]
+		],
+		0
 	];
 	
 	(*Now to find the {z,w} tuple, both are functions of a parameter s, which
@@ -223,7 +227,7 @@ Module[{l,PBCtop,lam},
 					] - BZrad (*And see whether z[T] is larger or smaller than BZrad*)
 				],
 				{dir,{1,-1}}
-			], (*We check whether Sign[z[T]-BZrad] is the same for either
+			]/2, (*We check whether Sign[z[T]-BZrad] is the same for either
 				     flow directions; if it's the same, this point is invalid;
 				     if it's opposite, this point is valid*)
 				     

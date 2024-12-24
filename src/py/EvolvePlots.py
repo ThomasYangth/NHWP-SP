@@ -1,96 +1,22 @@
+# EvolvePlots.py
+# Contains several functions that generate sophisticated plots comparing saddle-point results to real-time results.
+
 import scipy.optimize
-from HamClass.HamClass import LatticeHam, HamModel, EvoDat1D, EvoDat2D
-from HamClass.WaveFuns import GaussianWave
-from HamClass.Config import *
+from .HamClass import HamModel
+from .EvoDat import EvoDat1D, EvoDat2D
+from .WaveFuns import GaussianWave
+from .Config import *
 
 import numpy as np
 import scipy
 from scipy.ndimage import gaussian_filter as gaussfilt
-from time import time
 from matplotlib import pyplot as plt
-from subprocess import run as runcmd
 from math import floor, ceil
-from ncon import ncon
 
 import pickle
 
 if USE_GPU:
     import cupy as cp
-
-def plot_and_fit_1D (HamF:HamModel, Hamname, L, T, ks=[0], initpos = 0.5, dT=0.01, force_evolve = False, VKG = None):
-    Ham = HamF([L])
-    
-    spg, v, mxg = VKG
-    for k in ks:
-        init = Ham.GaussianWave((int(L*initpos),), 5, [(k,)])
-        FName = "{}_L{}_T{}_k{}".format(Hamname, L, T, k)
-        if initpos != 0.5:
-            FName += "_ip{:.2f}".format(initpos)
-        try:
-            if force_evolve:
-                raise Exception()
-            evodat = EvoDat1D.read(FName+".txt")
-        except Exception as e:
-            evodat = EvoDat1D.from_evolve(Ham, T, dT, init, FName, takedT = 0.1)
-            evodat.save()
-        evodat.plot_normNgrowth(refg = [spg, mxg])
-        evodat.plot_normNgrowth(pt=2, refg = [spg, mxg])
-        evodat.plot_normNgrowth(pt=-3, refg = [spg, mxg])
-        evodat.plot_profile()
-        evodat.plot_xNv(refv = v)
-
-def plot_and_fit_1D_Edge (HamF, Hamname, L, T, OBCL = None, dT=0.01, force_evolve = False, output=print, must_spec = 0, force_ip = None, sps = None, k = None, x0 = 5):
-    if OBCL is None:
-        OBCL = L
-    Ham = HamF([OBCL])
-    FName = "{}_SP_L{}_T{}".format(Hamname, L, T)
-    if k is not None:
-        FName += "_{}".format(k)
-    if x0 is not None:
-        FName += "_w{}".format(x0)
-    Ham.name = FName
-    im, sp, lgim, lgsp = Ham.max_SP_GBZ (0, output, must_spec = must_spec, L = OBCL, sps = sps)
-    Ham.bcs = [L]
-    if sp > 1:
-        initpos = 3
-    elif sp < 1:
-        initpos = L-4
-    else:
-        raise Exception("No Skin Effect in this model!")
-    if force_ip is not None:
-        initpos = force_ip
-    if k is None:
-        k0 = 0
-    elif k == "SPL":
-        k0 = np.imag(np.log(lgsp[0]))
-    elif k == "SPV":
-        k0 = np.imag(np.log(sp))
-    else:
-        k0 = 0
-    init = Ham.GaussianWave((initpos,), x0, [(0,)])
-    try:
-        if force_evolve:
-            raise Exception()
-        evodat = EvoDat1D.read(FName+".txt")
-    except Exception as e:
-        evodat = EvoDat1D.from_evolve(Ham, T, dT, init, FName, takedT = 0.1)
-        evodat.save()
-    maxiter = 5000
-    while True:
-        try:
-            GBZspec,_ = scipy.sparse.linalg.eigs(scipy.sparse.csr_matrix(HamF([100]).realize()), which="LI", k=1, maxiter = maxiter)
-            GBZtop = np.imag(GBZspec)
-            break
-        except:
-            maxiter *= 2
-        if maxiter > 1e8:
-            print("Too many iterations! Switching to normal diagonalization")
-            w,_ = np.linalg.eig(HamF([100]).realize())
-            GBZtop = np.max(np.imag(w))
-    
-    evodat.plot_normNgrowth(ref =[([im], "Legal SP"), (lgim, "Illegal SP"), (GBZtop, "GBZ Top")])
-    evodat.plot_normNgrowth(pt=initpos, ref =[([im], "Legal SP"), (lgim, "Illegal SP"), (GBZtop, "GBZ Top")])
-    evodat.plot_profile()
 
 
 def plot_velocities_1D (model:HamModel, L, T, dT=0.01, tkpts=2, vmax = 0, force_evolve = False, output=print, ip = None, comp=0, addn="", doplots=True):
@@ -508,74 +434,7 @@ def analyze_pointG_1D (model:HamModel, L, T, dT=0.1, force_evolve = False, outpu
         return ampr, phsr, E
     else:
         return ampr, phsr    
-def plot_pointG_1D_WF (model:HamModel, L, T, dT=0.1, force_evolve = False, ip = None, iprad = 1, ik = 0, addn="", doplots = True, takets = [], precision = 0, takerange = 20, fit = False, potential = None):
 
-    Ham = model([L])
-    Hamname = model.name+(("_"+addn) if addn!="" else "")
-    FName = "{}_WF_L{}_T{}".format(Hamname, L, T)
-    if ip is None:
-        ip = int(L/2)
-    else:
-        FName += "_ip{}".format(ip)
-        if ip < 0:
-            ip = L+ip
-
-    if model.int_dim == 1:
-        intvec = [1]
-    else:
-        intvec = np.random.randn(model.int_dim) + 1j*np.random.randn(model.int_dim)
-        intvec = intvec / np.linalg.norm(intvec)
-
-    if potential is None:
-        potential = [0] * L*model.int_dim
-    potential = np.diag(potential)
-
-    init = GaussianWave([L], (ip,), iprad, k = (ik,), intvec = intvec)
-
-    try:
-        if force_evolve:
-            raise Exception()
-        evodat = EvoDat1D.read(FName)
-    except Exception:
-        evodat = EvoDat1D.from_evolve(Ham.time_evolve, T, dT, init, FName, precision=precision, potential=potential, return_idnorm = True)
-        evodat.save()
-
-    if doplots:
-        evodat.plot_profile()
-
-    if len(takets) == 0:
-        takets = [T]
-    
-    itakets = [ceil(((t-evodat.times[0])/(evodat.times[1]-evodat.times[0])))-1 for t in takets]
-
-    for i, taketi in enumerate(itakets):
-        left = max(0,ip-takerange)
-        right = min(L,ip+takerange)
-        dat = evodat.res[left:right, 0, taketi]
-        amp = np.log(np.abs(dat)) + evodat.idnorm[left:right, 0, taketi]
-        phs = np.unwrap(np.angle(dat) - np.angle(evodat.res[ip,0,taketi]))
-        _, (ax1,ax2) = plt.subplots(1, 2)
-        xs = np.arange(left, right)
-        ax1.plot(xs, amp, label = "Amplitude")
-        ax2.plot(xs, phs, label = "Phase")
-
-        if fit:
-            poly1 = np.polyfit(xs, amp, deg=1)
-            ampc = poly1[0]
-            ax1.plot(xs, np.poly1d(poly1)(xs), color="C1", linestyle="--")
-            poly2 = np.polyfit(xs, phs, deg=1)
-            phsc = poly2[0]
-            ax2.plot(xs, np.poly1d(poly2)(xs), color="C1", linestyle="--")
-            beta = np.exp(ampc+1j*phsc)
-            ax2.set_title("Fitted beta = {:.5f} + {:.5f}j".format(np.real(beta), np.imag(beta)))
-
-        ax1.set_xlabel("x")
-        ax1.set_ylabel("Log |psi|")
-        ax2.set_xlabel("x")
-        ax2.set_ylabel("Phase")
-        ax1.set_title(f"Wave function at t = {takets[i]}")
-        plt.savefig(FName+f"_t{takets[i]}_rng{left}:{right}wf.jpg")
-        plt.close()
 
 def plot_pointG_1D_spsimp (model:HamModel, L, T, dT=0.1, force_evolve = False, output=print, ip = None, iprad = 1, ik = 0, comp=1, addn="", doplots=True, plotre=True, ploterr = False, alt=None, sel_mode="avg", start_t = 5, orig_t = 2, error_log = False, precision = 0):
 
@@ -773,7 +632,8 @@ def plot_pointG_1D_spsimp (model:HamModel, L, T, dT=0.1, force_evolve = False, o
     plt.savefig(FName+sel_mode+".pdf")
     plt.close()
 
-def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, output=print, ip = None, iprad = 1, ik = 0, addn="", doplots=True, alt=None, sel_mode="avg", start_t = 5, orig_t = 2, error_log = False, precision = 0):
+########## UPDATED METHOD ##############
+def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, ip = None, iprad = 1, ik = 0, start_t=5, addn="", precision = 0, plot_ax = None):
 
     Ham = model([L])
     Hamname = model.name+(("_"+addn) if addn!="" else "")
@@ -786,10 +646,13 @@ def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, o
             ip = L+ip
 
     which_boundary = 0
+    decay_exp = 1/2
     if ip < L/4:
         which_boundary = -1
+        decay_exp = 3/2
     elif ip > 3*L/4:
         which_boundary = 1
+        decay_exp = 3/2
 
     if model.int_dim == 1:
         intvec = [1]
@@ -804,10 +667,10 @@ def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, o
             raise Exception()
         evodat = EvoDat1D.read(FName)
     except Exception:
-        evodat = EvoDat1D.from_evolve(Ham.time_evolve, T, dT, init, FName, precision=precision, return_idnorm=False)
+        evodat = EvoDat1D.from_evolve(Ham, T, dT, init, FName, precision=precision, return_idnorm=False)
         evodat.save()
 
-    if doplots:
+    if plot_ax is None:
         evodat.plot_profile()
 
     dats = evodat.res[ip,0,:]
@@ -824,55 +687,119 @@ def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, o
             Hpp = row[4]
 
             if which_boundary == -1:
-                xmin = max(0, ip-5*iprad)
-                xmax = min(L-1, ip+5*iprad)
-                zl = model.GFDMMA(E, *[(x+1,ip+1) for x in range(xmin, xmax+1)])
+                xmin = max(0, ip-10*iprad)
+                xmax = min(L-1, ip+10*iprad)
+                zl = model.GFMMA(E, *[(x+1,ip+1) for x in range(xmin, xmax+1)])
                 tamp = np.sum(zl * (init[xmin:xmax+1]))
             elif which_boundary == 1:
-                xmin = max(0, ip-5*iprad)
-                xmax = min(L-1, ip+5*iprad)
-                zl = model.GFDMMA(E, *[(x-L,ip-L) for x in range(xmin, xmax+1)])
+                xmin = max(0, ip-10*iprad)
+                xmax = min(L-1, ip+10*iprad)
+                zl = model.GFMMA(E, *[(x-L,ip-L) for x in range(xmin, xmax+1)])
                 tamp = np.sum(zl * (init[xmin:xmax+1]))
             else:
                 zl = z ** (ip - np.arange(L))
                 tamp = np.sum(zl*init)
 
-            print(tamp/z*np.sqrt(1/(2*np.pi))*Hpp/1j)
-            print(np.log(tamp/z*np.sqrt(1/(2*np.pi))*Hpp/1j))
-            print(tamp/z*np.sqrt(1/(4*np.pi))*Hpp)
-            print(np.log(tamp/z*np.sqrt(1/(4*np.pi))*Hpp))
-
             if which_boundary == 0:
                 thissp = np.log(tamp/z*np.sqrt(1/(2*np.pi))*Hpp/1j)
             else:
-                thissp = np.log(tamp/z*np.sqrt(1/(4*np.pi))*Hpp)
+                thissp = np.log(tamp/z*np.sqrt(1/(8*np.pi))*Hpp)
 
             break
-
+    
+    # Deduct the exponential growth rate profile
     amps = amps - np.imag(E)*(evodat.times - evodat.times[0])
-
     sti = int(start_t / (evodat.times[1]-evodat.times[0]))
-
     times = evodat.times[sti:]
     amps = amps[sti:]
 
-    lw = 1
+    if plot_ax is None:
+        plt.rcParams.update(**PLT_PARAMS)
+        plt.figure(figsize=SINGLE_FIGSIZE, layout="constrained")
+        ax = plt.gca()
+    else:
+        ax = plot_ax
 
-    plt.rcParams.update({"font.size":8, "lines.linewidth":lw, "mathtext.fontset":"cm"})
+    ax.plot(times, amps, label="Numerical", color="C0")
+    ax.plot(times, np.real(thissp)-decay_exp*np.log(times), label="Theory", color="C1", linestyle="--")
+    ax.set_xscale("log")
+    ax.set_xlabel("$t$")
+    ax.set_ylabel(r"$log|G(t)|-\mathrm{Im}E_s t$")
+    ax.legend()
 
-    _, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 2.4), layout="constrained")
+    if plot_ax is None:
+        plt.savefig(FName+"_texp.pdf")
+        plt.close()
 
-    logtimes = np.log(times)
-    ax1.plot(logtimes, amps)
-    poly = np.polyfit(logtimes, amps, 1)
-    ax1.set_title("Slope = {:.3f}, Intersect = {:.3f}".format(poly[0], poly[1]))
-    ax1.plot(logtimes, np.poly1d(poly)(logtimes), color="C1", linestyle="--")
+########## UPDATED METHOD ##############
+def plot_pointG_1D_WF (model:HamModel, L, T, dT=0.1, force_evolve = False, ip = None, iprad = 1, ik = 0, addn="", doplots = True, takets = [], precision = 0, takerange = 20, fit = False, potential = None):
 
-    ax2.set_title("Theo. Ints. = {:.3f}".format(np.real(thissp)))
-    ax2.plot(logtimes, np.gradient(amps, logtimes))
+    Ham = model([L])
+    Hamname = model.name+(("_"+addn) if addn!="" else "")
+    FName = "{}_WF_L{}_T{}".format(Hamname, L, T)
+    if ip is None:
+        ip = int(L/2)
+    else:
+        FName += "_ip{}".format(ip)
+        if ip < 0:
+            ip = L+ip
 
-    plt.savefig(FName+sel_mode+"_texp.pdf")
-    plt.close()
+    if model.int_dim == 1:
+        intvec = [1]
+    else:
+        intvec = np.random.randn(model.int_dim) + 1j*np.random.randn(model.int_dim)
+        intvec = intvec / np.linalg.norm(intvec)
+
+    if potential is None:
+        potential = [0] * L*model.int_dim
+    potential = np.diag(potential)
+
+    init = GaussianWave([L], (ip,), iprad, k = (ik,), intvec = intvec)
+
+    try:
+        if force_evolve:
+            raise Exception()
+        evodat = EvoDat1D.read(FName)
+    except Exception:
+        evodat = EvoDat1D.from_evolve(Ham.time_evolve, T, dT, init, FName, precision=precision, potential=potential, return_idnorm = True)
+        evodat.save()
+
+    if doplots:
+        evodat.plot_profile()
+
+    if len(takets) == 0:
+        takets = [T]
+    
+    itakets = [ceil(((t-evodat.times[0])/(evodat.times[1]-evodat.times[0])))-1 for t in takets]
+
+    for i, taketi in enumerate(itakets):
+        left = max(0,ip-takerange)
+        right = min(L,ip+takerange)
+        dat = evodat.res[left:right, 0, taketi]
+        amp = np.log(np.abs(dat)) + evodat.idnorm[left:right, 0, taketi]
+        phs = np.unwrap(np.angle(dat) - np.angle(evodat.res[ip,0,taketi]))
+        _, (ax1,ax2) = plt.subplots(1, 2)
+        xs = np.arange(left, right)
+        ax1.plot(xs, amp, label = "Amplitude")
+        ax2.plot(xs, phs, label = "Phase")
+
+        if fit:
+            poly1 = np.polyfit(xs, amp, deg=1)
+            ampc = poly1[0]
+            ax1.plot(xs, np.poly1d(poly1)(xs), color="C1", linestyle="--")
+            poly2 = np.polyfit(xs, phs, deg=1)
+            phsc = poly2[0]
+            ax2.plot(xs, np.poly1d(poly2)(xs), color="C1", linestyle="--")
+            beta = np.exp(ampc+1j*phsc)
+            ax2.set_title("Fitted beta = {:.5f} + {:.5f}j".format(np.real(beta), np.imag(beta)))
+
+        ax1.set_xlabel("x")
+        ax1.set_ylabel("Log |psi|")
+        ax2.set_xlabel("x")
+        ax2.set_ylabel("Phase")
+        ax1.set_title(f"Wave function at t = {takets[i]}")
+        plt.savefig(FName+f"_t{takets[i]}_rng{left}:{right}wf.jpg")
+        plt.close()
 
 def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve= False, output=print, ip = None, iprad = 1, ik = 0, addn="", start_t = 5, error_log = False, precision = 0):
 
@@ -1537,7 +1464,6 @@ def plot_pointG_2D_mod (model:HamModel, L, W, T, dT=0.1, force_evolve = False, i
 
     plt.savefig(FName+sel_mode+".pdf")
     plt.close()
-
 
 def plot_pointG_2D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, output=print, ip = None, iprad = 1, ik = 0, addn="", doplots=True, alt=None, sel_mode="avg", start_t = 5, orig_t = 2, error_log = False, precision = 0):
 
@@ -2310,6 +2236,7 @@ def plot_and_fit_2D_Edge (model:HamModel, L, W, T, Tplot=None, edge="x-", k = (0
 
     return vs, lyaps, evodat
 
+########## UPDATED METHOD ##############
 def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, edge="x-", k = 0, ipdepth = 0, kspan = 0.1, dT=0.2, force_evolve = False, addname = ""):
 
     tkdT = 0.25
@@ -2332,6 +2259,8 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, edge="x-", k = 0, ipdep
     else:
         raise Exception("ip must be one of: 'x-', 'x+', 'y-', 'y+'.")
     
+    x0, y0 = ip
+    
     init = GaussianWave([L,W], ip, 1/(2*kspan), ik)
     
     try:
@@ -2341,24 +2270,65 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, edge="x-", k = 0, ipdep
         print("Read data")
     except Exception as e:
         print("Didn't read: {}".format(e))
-        evodat = EvoDat2D.from_evolve(model2d, L, W, T, dT, init, FName, takedT=tkdT)
+        evodat = EvoDat2D.from_evolve_m(model2d, L, W, T, dT, init, FName, takedT=tkdT)
         evodat.save()
     
+    seldat = np.linalg.norm(evodat.getRes(), axis=2)
     if edge.startswith("x"):
-        seldat = np.linalg.norm(evodat.getRes(), axis=(1,2))
+        seldat = seldat[:,y0,:]
     else:
-        seldat = np.linalg.norm(evodat.getRes(), axis=(0,2))
+        seldat = seldat[x0,:,:]
     seldat = seldat**2
     seldat /= np.sum(seldat, axis=0)
 
+    # Construct the projected wave function in one dimension
+    ip_proj = y0 if edge.startswith("x") else x0
     L1d = L if edge.startswith("x") else W
     ind = 0 if edge.startswith("x") else 1
-    init1d = GaussianWave([L1d], (ip[ind],), 1/(2*kspan), (k,))[:,0]
+    which_edge = y0<W/2 if edge.startswith("x") else x0<L/2
 
+    # For each k, we treat this as a 1D system and get an effective amplitude
+    # This gives us the projection of our wave function onto the edge mode.
     xs = np.arange(L1d)
     ks = xs*(2*np.pi)/L1d - np.pi
-    FT = np.exp(-1j*xs[np.newaxis,:]*ks[:,np.newaxis]) / np.sqrt(L1d)
-    k0 = FT@init1d
+
+    xmin = max(0, ip_proj-int(5/kspan))
+    xmax = min(L1d-1, ip_proj+int(5/kspan))
+    proj_wv = np.zeros(len(ks), xmax-xmin+1, dtype=complex)
+
+    # Sample Ns points of k
+    Ns = 10
+    ksamp = np.arange(Ns)*(2*np.pi)/Ns - np.pi
+    ksamp_zls = []
+    for k in ksamp:
+        spf = model2d.SPFMMAProj(k, which_edge)
+        for row in spf:
+            if row[3]:
+                z = row[0]
+                E = row[1]
+                Hpp = row[4]
+                if which_edge:
+                    zl = model2d.GFMMA2D(E, k, which_edge, *[(x-L1d,ip-L1d) for x in range(xmin, xmax+1)])
+                    tamp = np.sum(zl * (init[xmin:xmax+1]))
+                else:
+                    zl = model2d.GFMMA2D(E, k, *[(x+1,ip+1) for x in range(xmin, xmax+1)])
+                ksamp_zls.append(zl)
+                break
+
+    for i in range(Ns):
+        if i < Ns:
+            inext = i+1
+            knext = ksamp[inext]
+        else:
+            inext = 0
+            knext = np.pi
+        krng = np.logical_and(ks >= ksamp[i], ks < knext)
+        ksel = ks[krng]
+        proj_wv[krng, :] = ((ksel-ksamp[i])/(knext-ksamp[i])[:,np.newaxis]*ksamp_zls[inext][np.newaxis,:]
+            + (knext-ksel)/(knext-ksamp[i])[:,np.newaxis]*ksamp_zls[i][np.newaxis,:])
+
+    # Do FFT on the 2D array in one dimension and inner product with proj_wv
+
     Eks = np.array(model2d.EnergiesMMA(edge=edge[:1], krange=(ks[0],ks[-1]), prec=L1d-1))
     Ekt = np.exp(-1j*Eks[np.newaxis,:]*evodat.getTimes()[:,np.newaxis])
     kt = Ekt*k0

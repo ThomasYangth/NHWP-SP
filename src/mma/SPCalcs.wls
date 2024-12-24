@@ -42,11 +42,11 @@ Print[
 (*These are a list of parameters that are potentially used. They are set to some initial values, and may be modified by, for example, -dim 2 in the command line input.*)
 
 
-unitary = False;
 dim = 1;
 prec = 20;
 edge = 0;
 v = 0;
+k = 0;
 
 ClearAll[z,l,f];
 
@@ -54,7 +54,17 @@ ToMat[f_]:=If[Head@f===List,f,{{f}}];
 Hamexp = ToMat[ToExpression[$ScriptCommandLine[[2]]]];
 InitHam[]:=If[dim==1,
 	Hmat[z_]:=Evaluate@Hamexp;Heq[z_,l_]:=Evaluate@CharacteristicPolynomial[Hmat[z],l],
-	Hmat[z1_,z2_]:=Evaluate@Hamexp;Quiet[Heq[zs_,l_]:=Evaluate@CharacteristicPolynomial[Hmat[zs[[1]],zs[[2]]],l],Part::partd]]
+	If[NumericQ[k],
+		(* If k is provided, reduce the 2D Hamiltonian to a 1D one *)
+		dim = 1;
+		If[edge==1 || edge=="x",
+			Hmat[z_]:=Evaluate@Hamexp/.{z1->Exp[I k],z2->z},
+			Hmat[z_]:=Evaluate@Hamexp/.{z1->z,z2->Exp[I k]}
+		];
+		Heq[z_,l_]:=Evaluate@CharacteristicPolynomial[Hmat[z],l] ,
+	Hmat[z1_,z2_]:=Evaluate@Hamexp;Quiet[Heq[zs_,l_]:=Evaluate@CharacteristicPolynomial[Hmat[zs[[1]],zs[[2]]],l],Part::partd]
+	]
+]
 
 Fsps[flow_]:=
 Module[{sps,pos,res},
@@ -201,54 +211,18 @@ Module[{ks,k2s,Hmat1,Heq1},
 	]
 ]
 
-Efun[E_,xpairs_]:=
+Efun[e_,xpairs_]:=
 (
 InitHam[];
-H[z_]:=Evaluate@(Hmat[z][[1,1]]);
-ExportJSON[
-	Table[
-		If[Length[xs]!=2 || Sign[xs[[1]]]!=Sign[xs[[2]]],
-			Print["ERR:Invalid x pair "<>ToString[xs]];
-			Abort[]
-		];
-		If[xs[[1]] > 0,
-			Eigenfun`EigenfunctionL[H, E, xs[[1]], xs[[2]]],
-			Eigenfun`EigenfunctionR[H, E, -xs[[1]], -xs[[2]]]
-		]
-	,
-	{xs,xpairs}
+H = Evaluate@(Hmat[#][[1,1]])&;
+If[AllTrue[xpairs, #>0&, 2],
+	ExportJSON[EigenfunctionL[H, e, xpairs]],
+	If[AllTrue[xpairs, #<0&, 2],
+		ExportJSON[EigenfunctionR[H, e, xpairs]],
+		Print["ERR:Invalid x pair "<>ToString[xpairs]];Abort[]
 	]
 ]
 )
-
-EfunD[En_,xpairs_]:=
-Module[{evar,MyND},
-InitHam[];
-Needs["NumericalCalculus`"];
-H[z_]:=Evaluate@(Hmat[z][[1,1]]);
-MyND[fun_,x_]:=
-	(
-	ClearAll[eps];
-	eps = 10^-5;
-	(fun[x+eps]-fun[x-eps])/(2*eps)
-	);
-ExportJSON[
-	Table[
-		If[Length[xs]!=2 || Sign[xs[[1]]]!=Sign[xs[[2]]],
-			Print["ERR:Invalid x pair "<>ToString[xs]];
-			Abort[]
-		];
-		If[xs[[1]] > 0,
-			MyND[(Evaluate@Eigenfun`EigenfunctionL[H, #, xs[[1]], xs[[2]]]&), En],
-			MyND[(Evaluate@Eigenfun`EigenfunctionR[H, #, -xs[[1]], -xs[[2]]]&), En]
-			(*N[Limit[D[Eigenfun`EigenfunctionL[H, evar, xs[[1]], xs[[2]]],evar],evar->E]],
-			N[Limit[D[Eigenfun`EigenfunctionR[H, evar, -xs[[1]], -xs[[2]]],evar],evar->E]]*)
-		]
-	,
-	{xs,xpairs}
-	]
-]
-]
 
 
 nowind = 3;
@@ -260,12 +234,11 @@ Switch[$ScriptCommandLine[[nowind]],
 	"-prec",prec=ToExpression[$ScriptCommandLine[[nowind+1]]];nowind=nowind+2,
 	"-edge",edge=$ScriptCommandLine[[nowind+1]];nowind=nowind+2,
 	"-v",v=ToExpression[$ScriptCommandLine[[nowind+1]]];nowind=nowind+2,
-	"-unitary",unitary=True;nowind=nowind+1,
+	"-k",k=ToExpression[$ScriptCommandLine[[nowind+1]]];nowind=nowind+2,
 	"-sps",Fsps[False];Break[],
 	"-spflow",Fsps[True];Break[],
 	"-lv",Flv[Flatten[ToExpression/@($ScriptCommandLine[[nowind+1;;]])]];Break[],
 	"-hk",Fhk[Flatten[ToExpression/@($ScriptCommandLine[[nowind+1;;]])]];Break[],
 	"-ef",Efun[ToExpression[$ScriptCommandLine[[nowind+1]]],ToExpression[$ScriptCommandLine[[nowind+2]]]];Break[],
-	"-efd",EfunD[ToExpression[$ScriptCommandLine[[nowind+1]]],ToExpression[$ScriptCommandLine[[nowind+2]]]];Break[],
 	_,Print["No matching command '"<>$ScriptCommandLine[[nowind]]<>"'!"];Break[]]
 ]

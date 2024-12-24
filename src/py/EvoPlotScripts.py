@@ -350,7 +350,7 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve= False, outpu
     plt.savefig(FName0+"_VEC.pdf")
     plt.close()
 
-def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 10, edge="x-", k = 0, ipdepth = 0, kspan = 0.1, dT=0.2, force_evolve = False, addname = ""):
+def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 0, ipdepth = 0, kspan = 0.1, dT=0.2, force_evolve = False, addname = ""):
 
     tkdT = 0.25
 
@@ -396,7 +396,7 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 10, edge="x-", k =
     
     res = evodat.getRes()
     seldat = np.linalg.norm(res, axis=2)
-    if edge.startswith("x"):
+    if para_edge == 0:
         seldat = seldat[:,y0,:]
     else:
         seldat = seldat[x0,:,:]
@@ -420,8 +420,11 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 10, edge="x-", k =
     xmax = min(L1d-1, ip_perp+int(5/kspan))
 
     # Sample Ns points of k
+    if Ns <= 0:
+        Ns = L1d
     ksamp = np.arange(Ns)*(2*np.pi)/Ns
     ksamp_zls = np.zeros((Ns, xmax-xmin+1), dtype=complex)
+    Eks = np.zeros((Ns,), dtype=complex)
     for ki,k in enumerate(ksamp):
         spf = model2d.SPFMMAProj(k, para_edge)
         found_sp = False
@@ -439,7 +442,12 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 10, edge="x-", k =
                 break
         if not found_sp:
             raise Exception(f"No relevant saddle points found for k = {k}!")
-    proj_wv = np.apply_along_axis(lambda kszl:np.interp(ks, ksamp, kszl, period=2*np.pi), 0, ksamp_zls)
+        
+    if Ns < L1d:
+        proj_wv = np.apply_along_axis(lambda kszl:np.interp(ks, ksamp, kszl, period=2*np.pi), 0, ksamp_zls)
+        Eks = np.interp(ks, ksamp, Eks, period=2*np.pi)
+    else:
+        proj_wv = ksamp_zls
 
     # Do FFT on the 2D array in one dimension and inner product with proj_wv
     # First switch the FFT axis to the first axis
@@ -449,7 +457,6 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 10, edge="x-", k =
     init_psi_k = np.diagonal(np.tensordot(proj_wv, init_ft, axes=[[1],[1]]), axis1=0, axis2=1)
     # init_psi_k has shape (int_dof, len(times), L1d), with the last index being k
     # Multiply it by the exp(i E_s t) factor
-    Eks = np.array(model2d.EnergiesMMA(edge=edge[:1], krange=(ks[0], ks[-1]), prec=L1d-1))
     new_psi_k = init_psi_k * np.exp(-1j*Eks[np.newaxis,:]*evodat.getTimes()[:,np.newaxis])
     # Inverse Fourier transform to (int_dof, len(times), L1d) with the last index being x
     new_psi_x = np.fft.ifft(new_psi_k, axis=-1)

@@ -16,20 +16,26 @@ If[MemberQ[$Path,dir],0,AppendTo[$Path,dir]];
 (* ::Text:: *)
 (*If there is no input parameters, or -help is called, we output the help string.*)
 
+
 (* ::Text:: *)
 (*Different systems use different conventions for the command line arguments. For wolframscript, the command line arguments are encoded in $ScriptCommandLine, with index starting at 2. For math -script, arguments are in $CommandLine, with index starting at 4.*)
+
 
 (* ::Text:: *)
 (*Use this for math -script*)
 
+
 CommandLine = $CommandLine;
 StartIndex = 4;
+
 
 (* ::Text:: *)
 (*Use this for wolframscript*)
 
+
 (*CommandLine = $ScriptCommandLine;
 StartIndex = 2;*)
+
 
 If[Length[CommandLine]<=StartIndex||CommandLine[[2]]=="-help",
 	Print["Got Command Line:"];

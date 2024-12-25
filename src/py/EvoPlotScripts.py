@@ -407,9 +407,11 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     if para_edge == 0:
         ip_perp = y0
         L1d = L
+        Lperp = W
     else:
         ip_perp = x0
         L1d = W
+        Lperp = L
     # For each k, we treat this as a 1D system and get an effective amplitude
     # This gives us the projection of our wave function onto the edge mode.
     xs = np.arange(L1d)
@@ -417,7 +419,7 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
 
     # For each k we want to construct the <x|E><<E|x> Green's function in the perpendicular direction
     xmin = max(0, ip_perp-int(5/kspan))
-    xmax = min(L1d-1, ip_perp+int(5/kspan))
+    xmax = min(Lperp-1, ip_perp+int(5/kspan))
 
     # Sample Ns points of k
     if Ns <= 0:
@@ -436,7 +438,7 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
                 if perp_edge == 0:
                     zl = model2d.GFMMAProj(E, k, para_edge, *[(x+1,ip_perp+1) for x in range(xmin, xmax+1)])
                 else:
-                    zl = model2d.GFMMAProj(E, k, para_edge, *[(x-L1d,ip_perp-L1d) for x in range(xmin, xmax+1)])
+                    zl = model2d.GFMMAProj(E, k, para_edge, *[(x-Lperp,ip_perp-Lperp) for x in range(xmin, xmax+1)])
                 ksamp_zls[ki,:] = np.array(zl) * np.sqrt(1/(8*np.pi))*Hpp/z
                 found_sp = True
                 break

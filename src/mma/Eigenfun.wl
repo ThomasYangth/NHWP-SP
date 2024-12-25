@@ -52,7 +52,7 @@ Module[{z, betas, degpos, pbctop, gbzgapfun, gbzgapfunder, gbztouchings, betaord
 	betas = Quiet[z/.Solve[Ham[z]==En,z], Solve::ratnz];
 	betas = SortBy[betas, Abs];
 	(* Find which set of roots are degenerate *)
-	degpos = With[{bdifs=Abs[betas][2;;]-Abs[betas][;;Length[betas]-1]},
+	degpos = With[{bdifs=Abs[betas][[2;;]]-Abs[betas][[;;Length[betas]-1]]},
 		Ordering[bdifs,1][[1]]];
 	pbctop = NMaximize[Im[Ham[Exp[I*k]]],{k,0,2Pi}][[1]] + 0.1;
 	gbzgapfun[t_?NumericQ] := With[
@@ -67,6 +67,12 @@ Module[{z, betas, degpos, pbctop, gbzgapfun, gbzgapfunder, gbztouchings, betaord
 	];
 	(* Find all energies at which we will touch the GBZ, excluding En itself *)
 	gbztouchings = searchGbzTouching[gbzgapfun, gbzgapfunder, 10^-4, pbctop-Im[En]];
+	If[Length[gbztouchings]==0 && degpos != m, Print[(
+		"ERR: Saddle point not relevant: No gbz touchings, degpos is "<>ToString[degpos]<>", neg degree "<>ToString[m]<>"\n"
+		<>"Energy "<>ToString[En]<>", Roots "<>ToString[betas]<>"\n"
+		<>"For Hamiltonian "<>ToString[TeXForm[Ham[z]]])];
+		Exit[]
+	];
 	(* Return a table that contains the orderings of the flowed betas *)
 	betaorders = Table[
 		Ordering[
@@ -149,7 +155,6 @@ Module[{Eigfun},
 		,{ord,bos}]
 	];
 	Eigfun
-	(*With[{eps=0.0001},(Eigfun[eps]-Eigfun[0])/eps]*)
 ]
 
 EigenfunctionR[Ham_,En_?NumericQ,xslst_]:=

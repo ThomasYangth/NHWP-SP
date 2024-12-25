@@ -163,9 +163,9 @@ Module[{z,w,s,ds,zf,wf,sps,i},
 TableBZItsc[Heq_,sps_,v_:0,BZrad_:1]:=
 Module[{l,PBCtop,lam},
 	(*Find the largest Im on the PBC Spectrum of the Hamiltonian*)
-	PBCtop = NMaximize[
+	PBCtop = Quiet[NMaximize[
 				Max[Im[l/.Solve[Heq[BZrad*Exp[I*k],l]==0,l]]]+v*Log[BZrad],{k,0,2Pi}
-			][[1]] + 0.1;
+			]][[1]] + 0.1;
 	Table[
 		lam = Lam1[sps[[i]],v]; (*The lambda value of this saddle point*)
 		If[lam < PBCtop,
@@ -206,9 +206,9 @@ FindBZItsc[Heq_,sps_,v_:0,BZrad_:1]:=
 Windings[Heq_,sps_,v_:0,BZrad_:1]:=
 Module[{l,PBCtop,lam},
 	(*Find the largest Im on the PBC Spectrum of the Hamiltonian*)
-	PBCtop = NMaximize[
+	PBCtop = Quiet[NMaximize[
 				Max[Im[l/.Solve[Heq[BZrad*Exp[I*k],l]==0,l]]]+v*Log[BZrad],{k,0,2Pi}
-			][[1]] + 0.1;
+			]][[1]] + 0.1;
 	Table[
 		lam = Lam1[sps[[i]],v]; (*The lambda value of this saddle point*)
 		If[lam < PBCtop,

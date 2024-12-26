@@ -1,5 +1,8 @@
-from ..src.py.EvoPlotScripts import plot_pointG_1D_tslope, plot_and_compare_2D_Edge, plot_pointG_1D_WF
-from ..src.py.HamLib import GenMulti, GenHN2D
+import sys
+sys.path.append("..")
+
+from src.py.EvoPlotScripts import plot_pointG_1D_tslope, plot_and_compare_2D_Edge, plot_pointG_1D_WF
+from src.py.HamLib import GenMulti, GenHN2D
 
 def runX():
 

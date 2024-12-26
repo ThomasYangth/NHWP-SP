@@ -3,4 +3,4 @@ from os import chdir
 
 chdir("Datas")
 
-runModel3()
+run2D()

@@ -1,10 +1,7 @@
 {
-    "USE_GPU": false,
-    "FFMPEG_PATH": "/Users/tianhua/Downloads/ffmpeg",
-    "MMA_CALLER": ["wolframscript"],
-    "MMA_CALLER_EXPLANATION": "The command line arguments to call the Wolfram Engine. For 'wolframscript', it is ['wolframscript']. For 'math', it is ['math', '-script'].",
-    "MMA_CL_NAME": "$ScriptCommandLine",
-    "MMA_CL_NAME_EXPLANATION": "The name of the variable that documents command line arguments passed to the script. For 'wolframscript', it is $ScriptCommandLine. For 'math', it is $CommandLine.",
-    "MMA_CL_INDEX": 2,
-    "MMA_CL_INDEX_EXPLANATION": "The index at which non-trivial elements start in the CL_NAME list. For 'wolframscript', it is 2. For 'math', it is 4."
+    "USE_GPU": true,
+    "FFMPEG_PATH": "/home/ty1475/.conda/envs/py/bin/ffmpeg",
+    "MMA_CALLER": ["math", "-script"],
+    "MMA_CL_NAME": "$CommandLine",
+    "MMA_CL_INDEX": 4
 }

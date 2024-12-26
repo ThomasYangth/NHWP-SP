@@ -49,7 +49,7 @@ def callMMA(*args):
     t1 = time()
 
     args = [str(x) for x in args]
-    print(f"callMMA: {' '.join(MMA_CALLER)} {spscript} "+" ".join([f'"{x}"' for x in args]), end=" ")
+    print(f"callMMA: {' '.join(MMA_CALLER)} {spscript} "+" ".join([f'"{x}"' for x in args]), end=" ", flush=True)
 
     output = runcmd(MMA_CALLER + [spscript] + args)
     output = output.decode("utf-8")
@@ -407,15 +407,20 @@ class HamModel:
         return callMMA(self.to_mathematica(), "-ef", f"Complex[{np.real(E)}, {np.imag(E)}]", "{" + ",".join([f"{{{xp[0]},{xp[1]}}}" for xp in xpairs]) + "}")
     
     # Get the Green's function amplitude
-    def GFMMAProj (self, E, k, which_edge, *xpairs):
+    def GFMMAProj (self, kdens, which_edge, *xpairs):
         """
-        Similar to GFMMA, but for 2D models and projected to one edge. See GFMMA and SPFMMAProj.
+        Similar to GFMMA, but for 2D models and projected to one edge.
+        See GFMMA and SPFMMAProj.
+        
+        Returns:
+        A list, each element corresponds to a k, with the form [E, [<x1|E><<E|x2>/sqrt(H''(zs))]] for each E and (x1,x2) given.
+        k is ranked as arange(kdens)*2pi/kdens
         """
         if self.sp_dim != 2:
-            raise Exception("GFMMAProj works only for 1D models right now!")
+            raise Exception("GFMMAProj works only for 2D models right now!")
         if self.int_dim != 1:
             raise Exception("GFMMA works only for single-band models right now!")
-        return callMMA(self.to_mathematica(), "-dim", self.sp_dim, "-k", k, "-edge", "x" if which_edge<=0 else "y", "-ef", f"Complex[{np.real(E)}, {np.imag(E)}]", "{" + ",".join([f"{{{xp[0]},{xp[1]}}}" for xp in xpairs]) + "}")
+        return callMMA(self.to_mathematica(), "-dim", self.sp_dim, "-edge", "x" if which_edge<=0 else "y", "-efk", kdens, "{" + ",".join([f"{{{xp[0]},{xp[1]}}}" for xp in xpairs]) + "}")
 
 class LatticeHam (HamModel):
 

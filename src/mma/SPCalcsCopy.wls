@@ -25,9 +25,8 @@ If[MemberQ[$Path,dir],0,AppendTo[$Path,dir]];
 (*Use this for math -script*)
 
 
-CommandLine = $CommandLine;
-StartIndex = 4;
-
+(*CommandLine = $CommandLine;
+StartIndex = 4;*)
 
 (* ::Text:: *)
 (*Use this for wolframscript*)
@@ -36,6 +35,15 @@ StartIndex = 4;
 (*CommandLine = $ScriptCommandLine;
 StartIndex = 2;*)
 
+(* ::Text:: *)
+(*Import from file*)
+
+
+ConfigFile = FileNameJoin[{ParentDirectory[ParentDirectory[dir]], "Config.json"}];
+If[!FileExistsQ[ConfigFile], Print["ERR::Config file '"<>ConfigFile<>"' not found!"];Abort[]];
+ConfigVals = Import[ConfigFile];
+CommandLine = ToExpression["MMA_CL_NAME"/.ConfigVals];
+StartIndex = "MMA_CL_INDEX"/.ConfigVals;
 
 If[Length[CommandLine]<=StartIndex||CommandLine[[2]]=="-help",
 	Print["Got Command Line:"];
@@ -244,40 +252,6 @@ If[AllTrue[xpairs, #>0&, 2],
 		Print["ERR:Invalid x pair "<>ToString[xpairs]];Abort[]
 	]
 ]
-)
-
-EfunBatchK[kdens_,xpairs_] :=
-(
-	InitHam[False]; (*Initialize the Hamiltonian in its original 2D form*)
-	ks = Table[2*Pi*i/kdens,{i,0,kdens-1}];
-	EigenF = If[AllTrue[xpairs, #>0&, 2], EigenfunctionL,
-		If[AllTrue[xpairs, #<0&, 2], EigenfunctionR,
-			Print["ERR:Invalid x pair "<>ToString[xpairs]];Abort[]
-		]
-	];
-	HF[k_] := If[edge==1 || edge=="x",
-		Function[z,Evaluate@Hmat[z1,z2][[1,1]]/.{z1->Exp[I k],z2->z}],
-		Function[z,Evaluate@Hmat[z1,z2][[1,1]]/.{z1->z,z2->Exp[I k]}]
-	];
-	SPFk[Hk_] := 
-
-	EfunK[Hk_,e_] := With[{
-		H[z_] := If[edge==1 || edge=="x",
-			Evaluate@Hmat[z1,z2][[1,1]]/.{z1->Exp[I k],z2->z},
-			Evaluate@Hmat[z1,z2][[1,1]]/.{z1->z,z2->Exp[I k]}
-		]
-	},
-		EigenF[H, e, xpairs]
-	];
-
-	H = Evaluate@(Hmat[Exp[I*k]][[1,1]])&;
-	If[AllTrue[xpairs, #>0&, 2],
-		ExportJSON[EigenfunctionL[H, e, xpairs]],
-		If[AllTrue[xpairs, #<0&, 2],
-			ExportJSON[EigenfunctionR[H, e, xpairs]],
-			Print["ERR:Invalid x pair "<>ToString[xpairs]];Abort[]
-		]
-	]
 )
 
 (* ::Text:: *)

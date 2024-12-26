@@ -451,25 +451,12 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     if Ns <= 0:
         Ns = L1d
     ksamp = np.arange(Ns)*(2*np.pi)/Ns
-    ksamp_zls = np.zeros((Ns, xmax-xmin+1), dtype=complex)
-    Eks = np.zeros((Ns,), dtype=complex)
-    for ki,k in enumerate(ksamp):
-        spf = model2d.SPFMMAProj(k, para_edge)
-        found_sp = False
-        for row in spf:
-            if row[3]: # Find the relevant saddle point
-                z = row[0]
-                E = row[1]
-                Hpp = row[4]
-                if perp_edge == 0:
-                    zl = model2d.GFMMAProj(E, k, para_edge, *[(ip_perp+1,x+1) for x in range(xmin, xmax+1)])
-                else:
-                    zl = model2d.GFMMAProj(E, k, para_edge, *[(ip_perp-Lperp,x-Lperp) for x in range(xmin, xmax+1)])
-                ksamp_zls[ki,:] = np.array(zl) * np.sqrt(1/(8*np.pi))*Hpp/z
-                found_sp = True
-                break
-        if not found_sp:
-            raise Exception(f"No relevant saddle points found for k = {k}!")
+    if perp_edge == 0:
+        ksamp_zls_gfmma = model2d.GFMMAProj(Ns, para_edge,  *[(ip_perp+1,x+1) for x in range(xmin, xmax+1)])
+    else:
+        ksamp_zls_gfmma = model2d.GFMMAProj(Ns, para_edge,  *[(ip_perp-Lperp,x-Lperp) for x in range(xmin, xmax+1)])
+    Eks = np.array([row[0] for row in ksamp_zls_gfmma])
+    ksamp_zls = np.array([row[1] for row in ksamp_zls_gfmma])
         
     if Ns < L1d:
         proj_wv = np.apply_along_axis(lambda kszl:np.interp(ks, ksamp, kszl, period=2*np.pi), 0, ksamp_zls)

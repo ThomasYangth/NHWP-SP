@@ -1,0 +1,7 @@
+{
+    "USE_GPU": true,
+    "FFMPEG_PATH": "/home/ty1475/.conda/envs/py/bin/ffmpeg",
+    "MMA_CALLER": ["math", "-script"],
+    "MMA_CL_NAME": "$CommandLine",
+    "MMA_CL_INDEX": 4
+}

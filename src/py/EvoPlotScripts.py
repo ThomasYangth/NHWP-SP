@@ -1,5 +1,3 @@
-import scipy.interpolate
-import scipy.optimize
 from .HamClass import HamModel
 from .EvoDat import EvoDat1D, EvoDat2D
 from .WaveFuns import GaussianWave
@@ -7,9 +5,8 @@ from .Config import *
 
 import numpy as np
 import scipy
-from scipy.ndimage import gaussian_filter as gaussfilt
 from matplotlib import pyplot as plt
-from math import floor, ceil
+from matplotlib import colormaps
 
 import pickle
 
@@ -143,20 +140,21 @@ def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, i
         plt.savefig(FName+"_texp.pdf")
         plt.close()
 
-########## UPDATED METHOD ##############
-def plot_pointG_1D_WF (model:HamModel, L, T, which_edge, depth, dT=0.1, force_evolve = False, ip = 0, iprad = 1, ik = 0, addn="", plot_ax = None, takets = [], precision = 0, takerange = 20, fit = False, potential = None):
+
+def plot_pointG_1D_WF (model:HamModel, L, T, which_edge, depth, takerange, dT=0.1, force_evolve = False, ip = 0, iprad = 1, ik = 0, addn="", plot_ax = None, takets = [], precision = 0, potential = None):
 
     Ham = model([L])
     Hamname = model.name+(("_"+addn) if addn!="" else "")
     FName = "{}_WF_{}{}i{}_L{}T{}".format(Hamname, 'L' if which_edge<=0 else 'R', depth, ip, L, T)
     
     if which_edge > 0:
-        ip = L-1-ip
-        left = L-depth
+        ip = L-1-depth
+        left = L-takerange
         right = L
     else:
+        ip = depth
         left = 0
-        right = depth
+        right = takerange
 
     if model.int_dim == 1:
         intvec = [1]
@@ -175,36 +173,64 @@ def plot_pointG_1D_WF (model:HamModel, L, T, which_edge, depth, dT=0.1, force_ev
             raise Exception()
         evodat = EvoDat1D.read(FName)
     except Exception:
-        evodat = EvoDat1D.from_evolve(Ham.time_evolve, T, dT, init, FName, precision=precision, potential=potential, return_idnorm = True)
+        evodat = EvoDat1D.from_evolve(Ham, T, dT, init, FName, precision=precision, potential=potential, return_idnorm = True)
         evodat.save()
 
     if plot_ax is None:
         evodat.plot_profile()
         plt.rcParams.update(**PLT_PARAMS)
-        _, (ax1, ax2) = plt.subplots(1, 2, figsize=DOUBLE_FIGSIZE)
+        _, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=DOUBLE_FIGSIZE, layout="constrained", width_ratios=[100,100,1])
+        ax3.axis('off')
     else:
-        ax1. ax2 = plot_ax
-
-    ax1.set_xlabel("$x$")
-    ax1.set_ylabel(r"$\log|psi|$")
-    ax2.set_xlabel("$x$")
-    ax2.set_ylabel(r"Phase$(\psi)$")
+        ax1, ax2 = plot_ax
 
     if len(takets) == 0:
         takets = [T]
     
-    itakets = [ceil(((t-evodat.times[0])/(evodat.times[1]-evodat.times[0])))-1 for t in takets]
+    # Convert the time points in takets into indices
+    itakets = [min(round(((t-evodat.times[0])/(evodat.times[1]-evodat.times[0]))), evodat.T-1) for t in takets]
+
+    spf = model.SPFMMA()
+    for row in spf:
+        if row[3]:
+            E = row[1]
+            break
+    offset = -L if which_edge>0 else 1
+
+    xs = np.arange(left, right)
+    theos = model.GFMMA(E, *[(x+offset,ip+offset) for x in range(left, right)])
+    theo_amp = np.abs(theos)
+    theo_phs = np.unwrap(np.angle(theos))
+    theo_amp /= theo_amp[ip-left]
+    theo_phs = theo_phs[1:] - theo_phs[:-1]
+
+    ax1.plot(xs, theo_amp, label = "Theory", color="gray", linestyle="--", zorder=2, linewidth=THICK_LINEWIDTH)
+    ax2.plot(xs[1:] if which_edge<=0 else xs[:-1], theo_phs, label = "Theory", color="gray", linestyle="--", zorder=2, linewidth=THICK_LINEWIDTH)
+
+    ax1.set_title("Amplitude")
+    ax2.set_title("Phase")
+    ax1.set_xlabel("$x$")
+    ax2.set_xlabel("$x$")
+    ax1.set_ylabel(r"$|\psi(x)|$")
+    ax2.set_ylabel(r"$\Delta \mathrm{arg}\psi(x)$")
+    ax1.set_yscale("log")
+
+    colors = colormaps["plasma"](np.linspace(0,1,len(itakets)))
 
     for i, taketi in enumerate(itakets):
         dat = evodat.res[left:right, 0, taketi]
-        amp = np.log(np.abs(dat)) + evodat.idnorm[left:right, 0, taketi]
-        phs = np.unwrap(np.angle(dat) - np.angle(evodat.res[ip,0,taketi]))
-        xs = np.arange(left, right)
-        ax1.plot(xs, amp, label = "t = {:.1f}".format(evodat.times[taketi]))
-        ax2.plot(xs, phs, label = "t = {:.1f}".format(evodat.times[taketi]))
-        ax1.set_title(f"Wave function at t = {takets[i]}")
-        plt.savefig(FName+f"_t{takets[i]}_rng{left}:{right}wf.jpg")
-        plt.close()
+        amp = np.abs(dat) * np.exp(evodat.idnorm[left:right, 0, taketi])
+        phs = np.unwrap(np.angle(dat))
+        amp /= amp[ip-left]
+        phs = phs[1:] - phs[:-1]
+        ax1.plot(xs, amp, label = "t = {:.1f}".format(evodat.times[taketi]), color=colors[i], zorder=1)
+        ax2.plot(xs[1:] if which_edge<=0 else xs[:-1], phs, label = "t = {:.1f}".format(evodat.times[taketi]), color=colors[i], zorder=1)
+    
+    if plot_ax is None:
+        ax2.legend(loc='upper left', bbox_to_anchor=(1, 1))
+
+    plt.savefig(FName+f"_wf[{left}:{right}].pdf")
+    plt.close()
 
 def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve= False, output=print, ip = None, iprad = 1, ik = 0, addn="", start_t = 5, error_log = False, precision = 0):
 
@@ -268,7 +294,7 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve= False, outpu
 
             if found:
                 if np.imag(E-row[1]) < 0.1:
-                    print("****WARNING**** CLOSE EIGENVALUES")
+                    print("****WARNING**** CLOSE EIGENVALUES, RESULT MAY BE OFF")
                     print(f"E1 = {E}, E2 = {row[1]}")
                     break
 
@@ -436,9 +462,9 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
                 E = row[1]
                 Hpp = row[4]
                 if perp_edge == 0:
-                    zl = model2d.GFMMAProj(E, k, para_edge, *[(x+1,ip_perp+1) for x in range(xmin, xmax+1)])
+                    zl = model2d.GFMMAProj(E, k, para_edge, *[(ip_perp+1,x+1) for x in range(xmin, xmax+1)])
                 else:
-                    zl = model2d.GFMMAProj(E, k, para_edge, *[(x-Lperp,ip_perp-Lperp) for x in range(xmin, xmax+1)])
+                    zl = model2d.GFMMAProj(E, k, para_edge, *[(ip_perp-Lperp,x-Lperp) for x in range(xmin, xmax+1)])
                 ksamp_zls[ki,:] = np.array(zl) * np.sqrt(1/(8*np.pi))*Hpp/z
                 found_sp = True
                 break

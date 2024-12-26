@@ -25,9 +25,8 @@ If[MemberQ[$Path,dir],0,AppendTo[$Path,dir]];
 (*Use this for math -script*)
 
 
-CommandLine = $CommandLine;
-StartIndex = 4;
-
+(*CommandLine = $CommandLine;
+StartIndex = 4;*)
 
 (* ::Text:: *)
 (*Use this for wolframscript*)
@@ -36,6 +35,15 @@ StartIndex = 4;
 (*CommandLine = $ScriptCommandLine;
 StartIndex = 2;*)
 
+(* ::Text:: *)
+(*Import from file*)
+
+
+ConfigFile = FileNameJoin[{ParentDirectory[ParentDirectory[dir]], "Config.json"}];
+If[!FileExistsQ[ConfigFile], Print["ERR::Config file '"<>ConfigFile<>"' not found!"];Abort[]];
+ConfigVals = Import[ConfigFile];
+CommandLine = ToExpression["MMA_CL_NAME"/.ConfigVals];
+StartIndex = "MMA_CL_INDEX"/.ConfigVals;
 
 If[Length[CommandLine]<=StartIndex||CommandLine[[2]]=="-help",
 	Print["Got Command Line:"];

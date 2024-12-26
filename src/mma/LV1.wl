@@ -299,7 +299,7 @@ Module[{Heq,sps,result,windings},
 		Print["Saddle Points:"];
 		Print[Grid[
 			Join[
-				{{"z","E","lambda","wind","1/Sqrt[I H''[z]]","v"}},
+				{{"z","E","lambda","wind","1/Sqrt[I H''[z]]","Rvecs","Lvecs"}},
 				result
 			],
 			Frame->All

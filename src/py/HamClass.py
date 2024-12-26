@@ -4,7 +4,7 @@ import numpy as np
 from math import floor
 from numpy import transpose as Tp
 from matplotlib import pyplot as plt
-from matplotlib import cm, animation
+from matplotlib import cm
 from matplotlib.colors import Normalize
 from time import time
 import scipy.integrate as si
@@ -27,6 +27,9 @@ if USE_GPU:
 
 # ncp behaves as numpy if UES_GPU is false, and cupy if USE_GPU is true.
 ncp = cp if USE_GPU else np
+
+MMASCRIPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "mma") + "/"
+print("Constructed MMASCRIPT_PATH:", MMASCRIPT_PATH)
 
 def callMMA(*args):
     """
@@ -55,7 +58,7 @@ def callMMA(*args):
     try:
         res = json.loads(output)
     except Exception as e:
-        raise Exception(f"Error occured during json loading: {e}\nOutput string: {output}")
+        raise Exception(f"Error occured during json loading: {e}\nOutput string:\n#####\n{output}\n#####")
 
     # The Mathematica output has a headed nested list structure, we will parse it into Python list.
     def eliminateList(lst):
@@ -317,7 +320,7 @@ class HamModel:
     # Returns a list of growth rates
     def GrowthsMMA (self, *vlims, edge = None, prec=20):
         """
-        Uses the MMA script 
+        Uses the MMA script to calculate lambda(v) for a range of v.
         """
         if edge is None:
             return callMMA(self.to_mathematica(), "-dim", self.sp_dim, "-prec", prec, "-lv", *["{:.3f}".format(v) for v in vlims])
@@ -365,7 +368,7 @@ class HamModel:
             lambda: float, growth rate
             validity: bool, whether the saddle point is relevant
             prefactor: complex, (i*H''(z))^(-1/2)*winding
-            vectors: list of complex, the eigenvectors (of internal degree of freedoms) corresponding to the saddle point
+            Rvecs, Lvecs: two lists of complex, the right/left eigenvectors (of internal degree of freedoms) corresponding to the saddle point
         The list is sorted in descending order of lambda.
         """
         if self.sp_dim > 2:

@@ -1,5 +1,8 @@
-from ..src.py.EvoPlotScripts import plot_pointG_1D_tslope, plot_and_compare_2D_Edge, plot_pointG_1D_WF
-from ..src.py.HamLib import GenMulti, GenHN2D
+import sys
+sys.path.append("..")
+
+from src.py.EvoPlotScripts import plot_pointG_1D_tslope, plot_and_compare_2D_Edge, plot_pointG_1D_WF
+from src.py.HamLib import GenMulti, GenHN2D
 
 def runX():
 
@@ -47,7 +50,7 @@ def run2D():
     }
 
     model = GenHN2D(tsp, ts0, tsm, "2Da")
-    sz1 = 200
-    sz2 = 70
+    sz1 = 70
+    sz2 = 50
 
-    plot_and_compare_2D_Edge(model, sz1, sz2, 50, force_evolve=False, Ns=sz1, edge="x+")
+    plot_and_compare_2D_Edge(model, sz1, sz2, 20, force_evolve=False, Ns=sz1, edge="x+")

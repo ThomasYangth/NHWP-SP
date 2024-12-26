@@ -14,10 +14,6 @@ If[MemberQ[$Path,dir],0,AppendTo[$Path,dir]];
 
 
 (* ::Text:: *)
-(*If there is no input parameters, or -help is called, we output the help string.*)
-
-
-(* ::Text:: *)
 (*Different systems use different conventions for the command line arguments. For wolframscript, the command line arguments are encoded in $ScriptCommandLine, with index starting at 2. For math -script, arguments are in $CommandLine, with index starting at 4.*)
 
 
@@ -44,6 +40,11 @@ If[!FileExistsQ[ConfigFile], Print["ERR::Config file '"<>ConfigFile<>"' not foun
 ConfigVals = Import[ConfigFile];
 CommandLine = ToExpression["MMA_CL_NAME"/.ConfigVals];
 StartIndex = "MMA_CL_INDEX"/.ConfigVals;
+
+
+(* ::Text:: *)
+(*If there is no input parameters, or -help is called, we output the help string.*)
+
 
 If[Length[CommandLine]<=StartIndex||CommandLine[[2]]=="-help",
 	Print["Got Command Line:"];
@@ -252,6 +253,33 @@ If[AllTrue[xpairs, #>0&, 2],
 		Print["ERR:Invalid x pair "<>ToString[xpairs]];Abort[]
 	]
 ]
+)
+
+EfunBatchK[kdens_,xpairs_] :=
+(
+	InitHam[False]; (*Initialize the Hamiltonian in its original 2D form*)
+	ks = Table[2*Pi*i/kdens,{i,0,kdens-1}];
+	EigenF = If[AllTrue[xpairs, #>0&, 2], EigenfunctionL,
+		If[AllTrue[xpairs, #<0&, 2], EigenfunctionR,
+			Print["ERR:Invalid x pair "<>ToString[xpairs]];Abort[]
+		]
+	];
+	HF[k_] := If[edge==1 || edge=="x",
+		Function[z,Evaluate@Hmat[Exp[I k],z]],
+		Function[z,Evaluate@Hmat[z,Exp[I k]]]
+	];
+	(* Creates a list of {saddle point energy, {1/Sqrt[H''[zs]]*<x|E><<E|x> for all x pairs}} for each H[k] *)
+	ExportJSON[
+		Table[
+			With[{spf = SelectFirst[SPFlows1[HF[k],0,False],#[[4]]&]}, (* Select the relevant saddle point *)
+				{
+					spf[[2]] (* spf[[2]] is the saddle point energy *),
+					spf[[5]] * EigenF[(Evaluate@HF[k][#][[1,1]])&, spf[[2]], xpairs] (* spf[[5]] is 1/Sqrt[H''[zs]] *)
+				}
+			],
+			{k,ks}
+		]
+	]
 )
 
 (* ::Text:: *)

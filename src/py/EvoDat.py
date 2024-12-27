@@ -340,7 +340,7 @@ class EvoDat2D:
     def getTimes (self, force_numpy = True):
         return cast_numpy(self.times) if force_numpy else self.times
 
-    def animate (self, lower_panel_init, lower_panel_update, name, color_as_phase = False, cuts = None, point_scaling_exponent = 1, t_interval = 0.3):
+    def animate (self, lower_panel_init, lower_panel_update, name, color_as_phase = False, cuts = None, point_scaling_exponent = 1, t_interval = 0.3, snapshots = []):
         """
         Animate the wave packet evolution in 2D space.
         Has two panels, with upper panel plotting wave packet profile, and lower panel plotting some other information, which can be simultaneously animated.
@@ -358,6 +358,7 @@ class EvoDat2D:
         point_scaling_exponent: Default 1. Determines how sensitive the size of a representative dot is to the magnitude of the wave function.
             A smaller value would make parts of the wave function with smaller amplitude more visible.
         t_interval: Default 0.3. How long (in seconds) would a unit t interval be in the output video.
+        snapshops: A list of times. If provided, save images that correspond to the snapshots of the animation at the given time.
         """
 
         if not isfile(FFMPEG_PATH):
@@ -372,8 +373,10 @@ class EvoDat2D:
         # lp_init plots things on the lower panel that are persistent throughout the animation
         nmp = lower_panel_init(norm_ax)
         sct = None
+        ttl = None
         # nmp keeps track of all the objects plotted in the norm_ax
         # sct keeps track of the scatter plot in the map_ax
+        # ttl keeps track of the plot title text in the map_ax
         # Both have to be removed and re-plotted at each update step.
 
         xs = np.arange(self.L)+1
@@ -400,7 +403,7 @@ class EvoDat2D:
             cmap = plt.get_cmap("YlGn")
             cbar = fig.colorbar(mappable=cm.ScalarMappable(Normalize(0, 1, True), cmap), ax=map_ax)
             cbar.set_label("Rel. Amplitude")
-        map_ax.set_title("Relative Amplitude")
+        map_ax.set_title("")
 
         # Maximal size for representative point for the wave packet
         max_sz = round((3*fig.dpi/max(Lc, Wc))**2)
@@ -416,26 +419,41 @@ class EvoDat2D:
         
         def update (t):
             # At each step, redo the plot.
-            nonlocal sct, nmp
+            nonlocal sct, nmp, ttl
             tind = min(enumerate(self.times), key=lambda x:abs(x[1]-t))[0]
             dat = datas[:,:,tind]
             cls, szs = getClSz(dat)
+            if ttl is not None:
+                ttl.remove()
+            ttl = map_ax.text(0.5, 1.05, "t = {:.2f}".format(t), transform=map_ax.transAxes)
             if sct is not None:
                 sct.remove()
             sct = map_ax.scatter(xs, ys, s=szs, c=cls)
             for obj in nmp:
                 obj.remove()
             nmp = lower_panel_update(norm_ax, tind)
-            return sct, *nmp
+            return ttl, sct, *nmp
+        
+        savename = self.name + f"_Anim{name}{'_'+str(cuts) if cuts is not None else ''}"
+        if len(snapshots) > 0:
+            if not os.path.isdir(savename):
+                os.mkdir(savename)
+            for t in snapshots:
+                rets = update(t)
+                ttl = rets[0]
+                sct = rets[1]
+                nmp = rets[2:]
+                plt.savefig(f"{savename}/t{t}.pdf")
         
         rets = update(0)
-        sct = rets[0]
-        nmp = rets[1:]
+        ttl = rets[0]
+        sct = rets[1]
+        nmp = rets[2:]
 
         anim = animation.FuncAnimation(fig, lambda i: update(self.times[i]),
-                                frames=len(self.times), interval=t_interval*1000*(self.times[1]-self.times[0]), blit=True)
+                                frames=len(self.times), interval=t_interval*1000*(self.times[1]-self.times[0]), blit=False)
         plt.rcParams['animation.ffmpeg_path'] = FFMPEG_PATH
-        anim.save(self.name + f"_Anim{name}{'_'+str(cuts) if cuts is not None else ''}.mp4")
+        anim.save(savename + ".mp4")
         plt.close(fig)
 
     def animate_with_norm (self, **kwargs):

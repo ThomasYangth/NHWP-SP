@@ -54,7 +54,7 @@ Module[{z, betas, degpos, pbctop, gbzgapfun, gbzgapfunder, gbztouchings, betaord
 	(* Find which set of roots are degenerate *)
 	degpos = With[{bdifs=Abs[betas][[2;;]]-Abs[betas][[;;Length[betas]-1]]},
 		Ordering[bdifs,1][[1]]];
-	pbctop = NMaximize[Im[Ham[Exp[I*k]]],{k,0,2Pi}][[1]] + 0.1;
+	pbctop = Quiet[NMaximize[Im[Ham[Exp[I*k]]],{k,0,2Pi}]][[1]] + 0.1;
 	gbzgapfun[t_?NumericQ] := With[
 		{bs = SortBy[Quiet[z/.Solve[Ham[z]==En+I*t,z], Solve::ratnz], Abs]},
 		Abs[bs[[m+1]]]-Abs[bs[[m]]]

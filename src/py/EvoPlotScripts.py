@@ -376,7 +376,7 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve= False, outpu
     plt.savefig(FName0+"_VEC.pdf")
     plt.close()
 
-def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 0, ipdepth = 0, kspan = 0.1, dT=0.2, force_evolve = False, addname = ""):
+def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 0, ipdepth = 0, kspan = 0.1, dT=0.2, force_evolve = False, addname = "", snapshots = []):
 
     tkdT = 0.25
 
@@ -444,8 +444,8 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     ks = xs*(2*np.pi)/L1d
 
     # For each k we want to construct the <x|E><<E|x> Green's function in the perpendicular direction
-    xmin = max(0, ip_perp-int(5/kspan))
-    xmax = min(Lperp-1, ip_perp+int(5/kspan))
+    xmin = max(0, ip_perp-int(2/kspan))
+    xmax = min(Lperp-1, ip_perp+int(2/kspan))
 
     # Sample Ns points of k
     if Ns <= 0:
@@ -458,7 +458,7 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     Eks = np.array([row[0] for row in ksamp_zls_gfmma])
     ksamp_zls = np.array([row[1] for row in ksamp_zls_gfmma])
         
-    if Ns < L1d:
+    if Ns != L1d:
         proj_wv = np.apply_along_axis(lambda kszl:np.interp(ks, ksamp, kszl, period=2*np.pi), 0, ksamp_zls)
         Eks = np.interp(ks, ksamp, Eks, period=2*np.pi)
     else:
@@ -479,4 +479,4 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     seldat1d = np.transpose(np.linalg.norm(new_psi_x, axis=0))**2
     seldat1d /= np.sum(seldat1d, axis=0)
     
-    evodat.animate_with_curves(np.arange(L1d), [seldat, seldat1d], FName, legends=["Numerical", "Theory"], xlabel="x", ylabel="Amplitude", title=f"Wave Packet Amplitude in {edge[0]} direction")
+    evodat.animate_with_curves(np.arange(L1d), [seldat, seldat1d], FName, legends=["Numerical", "Theory"], xlabel="x", ylabel="Amplitude", title=f"Wave Packet Amplitude in {edge[0]} direction", snapshots=snapshots)

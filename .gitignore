@@ -4,4 +4,4 @@ slurmlogs/
 *.pyc
 */__pycache__/
 *.DS_Store
-Config*
+Config*.json

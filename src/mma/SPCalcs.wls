@@ -264,9 +264,12 @@ EfunBatchK[kdens_,xpairs_] :=
 			Print["ERR:Invalid x pair "<>ToString[xpairs]];Abort[]
 		]
 	];
-	HF[k_] := If[edge==1 || edge=="x",
-		Function[z,Evaluate@Hmat[Exp[I k],z]],
-		Function[z,Evaluate@Hmat[z,Exp[I k]]]
+	HF[k_] := If[edge==0 || edge=="x",
+				Function[z,Evaluate@Hmat[Exp[I k],z]],
+			If[edge==1 || edge=="y",
+				Function[z,Evaluate@Hmat[z,Exp[I k]]],
+				Print["ERR:Invalid edge "<>ToString[edge]];Abort[]
+			]
 	];
 	(* Creates a list of {saddle point energy, {1/Sqrt[H''[zs]]*<x|E><<E|x> for all x pairs}} for each H[k] *)
 	ExportJSON[

@@ -53,4 +53,4 @@ def run2D():
     sz1 = 200
     sz2 = 70
 
-    plot_and_compare_2D_Edge(model, sz2, sz1, 50, force_evolve=False, Ns=sz1, edge="y+")
+    plot_and_compare_2D_Edge(model, sz1, sz2, 50, force_evolve=False, Ns=sz1, edge="x-")

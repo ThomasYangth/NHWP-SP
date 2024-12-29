@@ -447,8 +447,8 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     ks = xs*(2*np.pi)/L1d
 
     # For each k we want to construct the <x|E><<E|x> Green's function in the perpendicular direction
-    xmin = max(0, ip_perp-int(5/kspan))
-    xmax = min(Lperp-1, ip_perp+int(5/kspan))
+    xmin = max(0, ip_perp-int(2/kspan))
+    xmax = min(Lperp-1, ip_perp+int(2/kspan))
 
     # Sample Ns points of k
     if Ns <= 0:

@@ -289,7 +289,7 @@ class EvoDat2D:
             ed.norms = ed.norms[::int(takedT/dT)]
             ed.res = ed.res[:,:,::int(takedT/dT)]
             ed.T = len(ed.times)
-        ed.res = ncp.reshape(ed.res, [ed.L, ed.W, ed.idof, ed.T])
+        ed.res = ncp.reshape(ed.res, [ed.getL(), ed.getW(), ed.idof, ed.T])
         ed.name = name
 
         return ed
@@ -339,6 +339,18 @@ class EvoDat2D:
 
     def getTimes (self, force_numpy = True):
         return cast_numpy(self.times) if force_numpy else self.times
+    
+    def getL (self, take_abs = True):
+        if take_abs:
+            return abs(self.L)
+        else:
+            return self.L
+        
+    def getW (self, take_abs = True):
+        if take_abs:
+            return abs(self.W)
+        else:
+            return self.W
 
     def animate (self, lower_panel_init, lower_panel_update, name, color_as_phase = False, cuts = None, point_scaling_exponent = 1, t_interval = 0.3, snapshots = []):
         """
@@ -364,7 +376,8 @@ class EvoDat2D:
         if not isfile(FFMPEG_PATH):
             raise Exception(f"ffmpeg path '{FFMPEG_PATH}' is invalid!")
         
-        fig = plt.figure(figsize=SQUARE_SHOW_FIGSIZE)
+        plt.rcParams.update(**PLT_PARAMS)
+        fig = plt.figure(figsize=SQUARE_FIGSIZE)
 
         # The figure will be split into two parts, 
         map_ax = plt.axes([0.1, 0.5, 0.9, 0.45])
@@ -379,8 +392,8 @@ class EvoDat2D:
         # ttl keeps track of the plot title text in the map_ax
         # Both have to be removed and re-plotted at each update step.
 
-        xs = np.arange(self.L)+1
-        ys = np.arange(self.W)+1
+        xs = np.arange(self.getL())+1
+        ys = np.arange(self.getW())+1
         if cuts is not None:
             xs = xs[cuts[0]]
             ys = ys[cuts[1]]
@@ -543,15 +556,15 @@ class EvoDat2D:
         if pt is None:
             ttimes = self.getTimes(force_numpy=True)
             tnorms = self.getNorms(force_numpy=True)
-        elif -self.L <= pt[0] < self.L and -self.W <= pt[1] < self.W:
+        elif -self.getL() <= pt[0] < self.getL() and -self.getW() <= pt[1] < self.getW():
             ptnorm = np.linalg.norm(self.getRes(force_numpy=True)[pt[0],pt[1],:,:], axis=0)
             choose = ptnorm > 1e-5
             ttimes = np.array(self.getTimes(force_numpy=True))[choose]
             tnorms = self.getNorms(force_numpy=True)[choose] + np.log(ptnorm[choose])
             ptstr = "_pt{}".format(pt)
         else:
-            raise Exception("pt {} out of range for L,W = ({},{})".format(pt, self.L, self.W))
+            raise Exception("pt {} out of range for L,W = ({},{})".format(pt, self.getL(), self.getW()))
 
-        title = "L = {}, W = {}".format(self.L, self.W)
+        title = "L = {}, W = {}".format(self.getL(), self.getW())
         name = self.name+"Growth"+"_"+ptstr
         EvoDat1D._plot_growth(ttimes, tnorms, name, title, refs)

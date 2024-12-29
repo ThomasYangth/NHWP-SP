@@ -50,7 +50,13 @@ def run2D():
     }
 
     model = GenHN2D(tsp, ts0, tsm, "2Da")
-    sz1 = 200
-    sz2 = 70
+    sz1 = 70
+    sz2 = 50
 
-    plot_and_compare_2D_Edge(model, sz1, sz2, 50, force_evolve=False, Ns=sz1, edge="x-")
+    plot_and_compare_2D_Edge(model, -sz1, sz2, 20, kspan=0.5, k=1, force_evolve=False, Ns=sz1, edge="x+")
+
+def runExoticModel():
+    ts = {0:(-0.752 - 0.922j), -1: -(0.214 - 0.03j), 1:(0.282 + 0.625j)}
+    model = GenMulti(ts, 1, "from2D")
+    plot_pointG_1D_WF(model, 200, 50, 0, 0, 10, iprad=5, takets=[0, 1, 5, 10, 20, 30, 50], force_evolve=True)
+    plot_pointG_1D_WF(model, 200, 50, 1, 0, 10, iprad=5, takets=[0, 1, 5, 10, 20, 30, 50], force_evolve=True)

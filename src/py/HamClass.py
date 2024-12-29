@@ -445,15 +445,22 @@ class LatticeHam (HamModel):
             return self.realize_given_k(self.bcs, [])
         else:
             return lambda ks: self.realize_given_k(self.bcs, ks)
+        
+    def get_bcs (self, take_abs = True, omit_zeros = True):
+        if omit_zeros:
+            return [abs(x) if take_abs else x for x in self.bcs if x != 0]
+        else:
+            return [abs(x) if take_abs else x for x in self.bcs]
 
     def realize_given_k (self, bcs, ks):
         """Realizes the Hamiltonian on a lattice."""
 
         pbcdims = [i for i, x in enumerate(bcs) if x == 0]
-        obcdims = [i for i, x in enumerate(bcs) if x > 0]
-        obcnums = [bcs[i] for i in obcdims]
+        obcdims = [i for i, x in enumerate(bcs) if x != 0]
+        rpbcdims = [bcs[obcdi] for obcdi in obcdims]
+        obcnums = [abs(bcs[i]) for i in obcdims]
 
-        Ham_dim = int(np.prod(obcnums)*self.int_dim)
+        Ham_dim = abs(int(np.prod(obcnums)*self.int_dim))
         H = np.zeros([Ham_dim, Ham_dim], dtype=complex)
 
         if len(obcnums) == 0:
@@ -478,15 +485,20 @@ class LatticeHam (HamModel):
                     out_of_range = False
                     for i, d in enumerate(pbcdims):
                         if poslist[d] != 0:
-                             # If the hopping is along a PBC direction, it gives a phase
+                             # If the hopping is along a PBC k-resolved direction, it gives a phase
                             mat *= np.exp(1j*poslist[d]*ks[i]) 
                     for i, d in enumerate(obcdims):
-                        # If the hopping is along an OBC direction, update newpos
+                        # If the hopping is along an OBC or PBC non-resolved direction, update newpos
                         if poslist[d] != 0:
                             newpos[i] += poslist[d]
                             if newpos[i] < 0 or newpos[i] >= obcnums[i]:
-                                out_of_range = True
-                                break
+                                if rpbcdims[i] > 0:
+                                    # If this is an OBC direction, the hopping is invalid
+                                    out_of_range = True
+                                    break
+                                else:
+                                    # If this is a PBC direction, we wrap around
+                                    newpos[i] = newpos[i] % (-rpbcdims[i])
                     # Insert the matrix element
                     if not out_of_range:
                         opi = self.pos_to_index(obcpos, obcnums)
@@ -602,7 +614,7 @@ class LatticeHam (HamModel):
             documents the approximate amplitude of res in powers of 10.
         """
 
-        obcdims = [i for i, x in enumerate(self.bcs) if x > 0]
+        obcdims = [i for i, x in enumerate(self.bcs) if x != 0]
         H0 = self.realize()
 
         if self.sp_dim != len(obcdims):
@@ -614,12 +626,12 @@ class LatticeHam (HamModel):
         times = [dT*i for i in range(floor(T/dT)+1)]
         ncp = cp if (USE_GPU and return_cp_when_possible) else np
 
-        H = self.realize() + potential
+        H = H0 + potential
         t1 = time()
         if return_idnorm:
             res, idnorm = LatticeHam._evolve_Ham(H, init, times, return_cp_when_possible = return_cp_when_possible, use_mathematica_precision=precision, method=method, return_idnorm = True, fpcut = fpcut)
             norms = ncp.real(res[-1,:])
-            res = ncp.reshape(res[:-1,:], self.bcs + [self.int_dim, len(times)])
+            res = ncp.reshape(res[:-1,:], self.get_bcs() + [self.int_dim, len(times)])
             idnorm = ncp.reshape(idnorm, np.shape(res))
             print("Evolution calculation time: {}s".format(time()-t1))
             return norms, res, idnorm
@@ -627,7 +639,7 @@ class LatticeHam (HamModel):
             res = LatticeHam._evolve_Ham(H, init, times, return_cp_when_possible = return_cp_when_possible, use_mathematica_precision=precision, method=method, fpcut = fpcut)
             print("Evolution calculation time: {}s".format(time()-t1))
             norms = ncp.real(res[-1,:])
-            res = ncp.reshape(res[:-1,:], self.bcs + [self.int_dim, len(times)])
+            res = ncp.reshape(res[:-1,:], self.get_bcs() + [self.int_dim, len(times)])
             if USE_GPU and not return_cp_when_possible:
                 if isinstance(norms, cp.ndarray):
                     norms = norms.get()

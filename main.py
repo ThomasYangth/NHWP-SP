@@ -3,4 +3,5 @@ from os import chdir
 
 chdir("Datas")
 
+#runExoticModel()
 run2D()

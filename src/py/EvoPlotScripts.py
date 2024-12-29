@@ -380,26 +380,27 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
 
     tkdT = 0.25
 
-    FName = "{}_L{}W{}_{}{}_T{}_{}".format(model2d.name, L, W, edge, ipdepth, T, addname)
-    if k != 0:
-        FName += "_k{}".format(k)
+    Lp = abs(L)
+    Wp = abs(W)
+
+    FName = f"{model2d.name}_L{L}W{W}_{edge}{ipdepth}_k{k}s{kspan}_T{T}_{addname}"
     if edge == "x-":
-        ip = (int(L/2), 0+ipdepth)
+        ip = (int(Lp/2), 0+ipdepth)
         ik = (k,0)
         para_edge = 0
         perp_edge = 0
     elif edge == "x+":
-        ip = (int(L/2), W-1-ipdepth)
+        ip = (int(Lp/2), Wp-1-ipdepth)
         ik = (k,0)
         para_edge = 0
         perp_edge = 1
     elif edge == "y-":
-        ip = (0+ipdepth, int(W/2))
+        ip = (0+ipdepth, int(Wp/2))
         ik = (0,k)
         para_edge = 1
         perp_edge = 0
     elif edge == "y+":
-        ip = (L-1-ipdepth, int(W/2))
+        ip = (Lp-1-ipdepth, int(Wp/2))
         ik = (0,k)
         para_edge = 1
         perp_edge = 1
@@ -429,23 +430,25 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     seldat = seldat**2
     seldat /= np.sum(seldat, axis=0)
 
+    print("Initial WP at t=0: ", seldat[:,0])
+
     # Construct the projected wave function in one dimension
     if para_edge == 0:
         ip_perp = y0
-        L1d = L
-        Lperp = W
+        L1d = Lp
+        Lperp = Wp
     else:
         ip_perp = x0
-        L1d = W
-        Lperp = L
+        L1d = Wp
+        Lperp = Lp
     # For each k, we treat this as a 1D system and get an effective amplitude
     # This gives us the projection of our wave function onto the edge mode.
     xs = np.arange(L1d)
     ks = xs*(2*np.pi)/L1d
 
     # For each k we want to construct the <x|E><<E|x> Green's function in the perpendicular direction
-    xmin = max(0, ip_perp-int(2/kspan))
-    xmax = min(Lperp-1, ip_perp+int(2/kspan))
+    xmin = max(0, ip_perp-int(5/kspan))
+    xmax = min(Lperp-1, ip_perp+int(5/kspan))
 
     # Sample Ns points of k
     if Ns <= 0:
@@ -469,7 +472,11 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     if para_edge == 1:
         res = np.transpose(res, (1,0,2,3))
     init_ft = np.fft.fft(res[:,np.arange(xmin,xmax+1),:,:], axis=0)
+    print("FFT at t=0: ", init_ft[:,ip_perp-xmin,0,0])
+    print("At k=0, init_ft is:", init_ft[0,:,0,0])
+    print("At k=0, proj_wv is:", proj_wv[0,:])
     init_psi_k = np.diagonal(np.tensordot(proj_wv, init_ft, axes=[[1],[1]]), axis1=0, axis2=1)
+    print("Initial Psi_k at t=0: ", init_psi_k[0,0,:])
     # init_psi_k has shape (int_dof, len(times), L1d), with the last index being k
     # Multiply it by the exp(i E_s t) factor
     new_psi_k = init_psi_k * np.exp(-1j*Eks[np.newaxis,:]*evodat.getTimes()[:,np.newaxis])
@@ -479,4 +486,4 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     seldat1d = np.transpose(np.linalg.norm(new_psi_x, axis=0))**2
     seldat1d /= np.sum(seldat1d, axis=0)
     
-    evodat.animate_with_curves(np.arange(L1d), [seldat, seldat1d], FName, legends=["Numerical", "Theory"], xlabel="x", ylabel="Amplitude", title=f"Wave Packet Amplitude in {edge[0]} direction", snapshots=snapshots)
+    evodat.animate_with_curves(np.arange(L1d), [seldat, seldat1d], "EffEdge", legends=["Numerical", "Theory"], xlabel="x", ylabel="Amplitude", title=f"Wave Packet Amplitude in {edge[0]} direction", snapshots=snapshots)

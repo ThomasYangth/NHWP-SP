@@ -88,7 +88,7 @@ InitHam[processK_:True]:=If[dim==1,
 	If[processK && NumericQ[k],
 		(* If k is provided, reduce the 2D Hamiltonian to a 1D one *)
 		dim = 1;
-		If[edge==1 || edge=="x",
+		If[edge==0 || edge=="x",
 			Hmat[z_]:=Evaluate@Hamexp/.{z1->Exp[I k],z2->z},
 			Hmat[z_]:=Evaluate@Hamexp/.{z1->z,z2->Exp[I k]}
 		];

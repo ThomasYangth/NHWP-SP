@@ -4,11 +4,8 @@ from .WaveFuns import GaussianWave
 from .Config import *
 
 import numpy as np
-import scipy
 from matplotlib import pyplot as plt
 from matplotlib import colormaps
-
-import pickle
 
 def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, ip = None, iprad = 1, ik = 0, start_t=5, addn="", precision = 0, plot_ax = None):
     """

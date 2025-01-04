@@ -1,4 +1,4 @@
-from examples.compare_sp import *
+from examples.oncluster import *
 from os import chdir
 from sys import argv
 

@@ -29,6 +29,7 @@ def runModel3():
 
 def run2D():
 
+    """
     ts0 = {
         -2:-0.194+0.316j,
         -1:-0.744-0.634j,
@@ -36,7 +37,14 @@ def run2D():
         1: 0.217+0.434j,
         2: -0.346-0.488j
     }
+    """
 
+    ts0 = {
+        1: 2j,
+        -1: 1/2
+    }
+
+    """
     tsm = {
         -1:-0.276-0.596j,
         0: 0.777+0.996j,
@@ -48,12 +56,15 @@ def run2D():
         0: 0.008+0.979j,
         1: -0.317+0.464j
     }
+    """
+    tsm = {0:1}
+    tsp = {0:2j}
 
-    model = GenHN2D(tsp, ts0, tsm, "2Da")
-    sz1 = 70
-    sz2 = 50
+    model = GenHN2D(tsp, ts0, tsm, "2DHN")
+    sz1 = 500
+    sz2 = 1
 
-    plot_and_compare_2D_Edge(model, -sz1, sz2, 20, kspan=0.5, k=1, force_evolve=False, Ns=sz1, edge="x+")
+    plot_and_compare_2D_Edge(model, sz1, sz2, 50, kspan=0.05, k=0, force_evolve=True, Ns=sz1, edge="x+")
 
 def runExoticModel():
     ts = {0:(-0.752 - 0.922j), -1: -(0.214 - 0.03j), 1:(0.282 + 0.625j)}

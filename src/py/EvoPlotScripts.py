@@ -654,7 +654,8 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve=False, ip = N
 
 def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 0, ipdepth = 0, kspan = 0.1, dT=0.2, force_evolve = False, addname = "", snapshots = []):
 
-    tkdT = 0.25
+    #tkdT = 0.25
+    tkdT = None
 
     Lp = abs(L)
     Wp = abs(W)
@@ -750,19 +751,26 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     # First switch the FFT axis to the first axis
     if para_edge == 1:
         res = np.transpose(res, (1,0,2,3))
-    init_ft = np.fft.fft(res[:,np.arange(xmin,xmax+1),:,:], axis=0)
-    print("FFT at t=0: ", init_ft[:,ip_perp-xmin,0,0])
-    print("At k=0, init_ft is:", init_ft[0,:,0,0])
+    # Take res at t=0, which is the initial wave function
+    init_real = res[:,xmin:xmax+1,:,0]
+    init_ft = np.fft.fft(init_real, axis=0)
+    # print("FFT at t=0: ", init_ft[:,ip_perp-xmin,0])
+    print("At k=0, init_ft is:", init_ft[0,:,0])
     print("At k=0, proj_wv is:", proj_wv[0,:])
+    print("At k=first, init_ft is:", init_ft[1,:,0])
+    print("At k=first, proj_wv is:", proj_wv[1,:])
+    # proj_wv has axes (k,y)
+    # init_ft has axes (k,y,int_dof)
+    # init_psi_k has axes (int_dof,k)
     init_psi_k = np.diagonal(np.tensordot(proj_wv, init_ft, axes=[[1],[1]]), axis1=0, axis2=1)
-    print("Initial Psi_k at t=0: ", init_psi_k[0,0,:])
+    print("Initial Psi_k at t=0: ", init_psi_k[0,:])
     # init_psi_k has shape (int_dof, len(times), L1d), with the last index being k
-    # Multiply it by the exp(i E_s t) factor
-    new_psi_k = init_psi_k * np.exp(-1j*Eks[np.newaxis,:]*evodat.getTimes()[:,np.newaxis])
-    # Inverse Fourier transform to (int_dof, len(times), L1d) with the last index being x
-    new_psi_x = np.fft.ifft(new_psi_k, axis=-1)
+    # Multiply it by the exp(-i E_s t) factor
+    new_psi_k = init_psi_k[:,:,np.newaxis] * np.exp(-1j*Eks[np.newaxis,:,np.newaxis]*evodat.getTimes()[np.newaxis,np.newaxis,:])
+    # Inverse Fourier transform to (int_dof, L1d, len(times)) with the last index being x
+    new_psi_x = np.fft.ifft(new_psi_k, axis=1)
     # Take the norm squared
-    seldat1d = np.transpose(np.linalg.norm(new_psi_x, axis=0))**2
+    seldat1d = np.linalg.norm(new_psi_x, axis=0)**2
     seldat1d /= np.sum(seldat1d, axis=0)
     
     evodat.animate_with_curves(np.arange(L1d), [seldat, seldat1d], "EffEdge", legends=["Numerical", "Theory"], xlabel="x", ylabel="Amplitude", title=f"Wave Packet Amplitude in {edge[0]} direction", snapshots=snapshots)

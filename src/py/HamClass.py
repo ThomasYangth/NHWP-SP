@@ -623,8 +623,8 @@ class LatticeHam (HamModel):
             except Exception as e:
                 raise Exception(f"PBC Hamiltonian cannot be used in time_evolve, try providign the correct ks.\n{e}")
         
-        times = [dT*i for i in range(floor(T/dT)+1)]
         ncp = cp if (USE_GPU and return_cp_when_possible) else np
+        times = ncp.array([dT*i for i in range(floor(T/dT)+1)])
 
         H = H0 + potential
         t1 = time()
@@ -634,7 +634,7 @@ class LatticeHam (HamModel):
             res = ncp.reshape(res[:-1,:], self.get_bcs() + [self.int_dim, len(times)])
             idnorm = ncp.reshape(idnorm, np.shape(res))
             print("Evolution calculation time: {}s".format(time()-t1))
-            return norms, res, idnorm
+            return norms, res, idnorm, times
         else:
             res = LatticeHam._evolve_Ham(H, init, times, return_cp_when_possible = return_cp_when_possible, use_mathematica_precision=precision, method=method, fpcut = fpcut)
             print("Evolution calculation time: {}s".format(time()-t1))
@@ -646,7 +646,7 @@ class LatticeHam (HamModel):
                 if isinstance(res, cp.ndarray):
                     res = res.get()
 
-            return norms, res
+            return norms, res, times
         
 
     def _evolve_Ham (H, init, times, return_cp_when_possible = False, method = 0, use_mathematica_precision = 20, return_idnorm = False, fpcut = 0):

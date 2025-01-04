@@ -61,14 +61,21 @@ class EvoDat1D:
         if takedT is None:
             takedT = dT
         ed = EvoDat1D()
-        ed.times = np.array([takedT*i for i in range(floor(T/takedT)+1)])
         if return_idnorm:
-            ed.norms, ed.res, ed.idnorm = Ham.time_evolve(T, dT, init, return_cp_when_possible=False, precision=precision, potential = potential, return_idnorm = return_idnorm, fpcut = fpcut)
+            ed.norms, ed.res, ed.idnorm, ed.times = Ham.time_evolve(T, dT, init, return_cp_when_possible=False, precision=precision, potential = potential, return_idnorm = return_idnorm, fpcut = fpcut)
         else:
-            ed.norms, ed.res = Ham.time_evolve(T, dT, init, return_cp_when_possible=False, precision=precision, potential = potential, return_idnorm = False, fpcut = fpcut)
+            ed.norms, ed.res, ed.times = Ham.time_evolve(T, dT, init, return_cp_when_possible=False, precision=precision, potential = potential, return_idnorm = False, fpcut = fpcut)
             ed.idnorm = np.zeros(np.shape(ed.res))
+
+        if takedT is not None:
+            ed.times = ed.times[::int(takedT/dT)]
+            ed.norms = ed.norms[::int(takedT/dT)]
+            ed.res = ed.res[:,:,::int(takedT/dT)]
+            if return_idnorm:
+                ed.idnorm = ed.idnorm[:,:,::int(takedT/dT)]
             
         ed.L, ed.idof, ed.T = np.shape(ed.res)
+
         ed.name = name
         return ed
 
@@ -279,11 +286,10 @@ class EvoDat2D:
             ncp = np
             ed.isCupy = False
 
-        ed.norms, ed.res = Ham.time_evolve(T, dT, init, return_idnorm=False, return_cp_when_possible = return_cp_when_possible)
+        ed.norms, ed.res, ed.times = Ham.time_evolve(T, dT, init, return_idnorm=False, return_cp_when_possible = return_cp_when_possible)
         ed.L = Ham.bcs[0]
         ed.W = Ham.bcs[1]
         _,_, ed.idof, ed.T = ncp.shape(ed.res)
-        ed.times = ncp.array([dT*i for i in range(ed.T)])
         if takedT is not None:
             ed.times = ed.times[::int(takedT/dT)]
             ed.norms = ed.norms[::int(takedT/dT)]

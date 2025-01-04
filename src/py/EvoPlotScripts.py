@@ -6,6 +6,8 @@ from .Config import *
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import colormaps
+from math import floor
+
 
 def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, ip = None, iprad = 1, ik = 0, start_t=5, addn="", precision = 0, plot_ax = None):
     """
@@ -138,7 +140,259 @@ def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, i
         plt.close()
 
 
+def plot_pointG_1D_exponent (model:HamModel, L, T, comp=1, dT=0.1, force_evolve = False, ip = None, iprad = 1, ik = 0, addn="", plotre=True, ploterr = False, sel_mode="avg", start_t = 5, orig_t = 2, precision = 0, plot_ax = None):
+    """
+    For a 1D chain, do time evolution to extract G(x,x,t) at a point x.
+    Try to compare G(x,x,t) to the theoretical prediction ~ \sum_{E_s} t^{-a}exp(-i E_s t), where a is 1/2 in the bulk and 3/2 on the boundary.
+    Specifically, generates a plot of d/dt[log[G(x,x,t)*t^a]] v.s. t, and compares it to the theoretical prediction.
+
+    Parameters:
+    model: HamModel
+        The Hamiltonian model to be used.
+    L: int
+        The size of the 1D chain.
+    T: float
+        The time to evolve to.
+    comp: int
+        (Maximal) number of relevant saddle points to take. Default 1.
+    plotre: bool
+        Whether or not to add a panel to plot Im d/dt G(x,x,t). Default False.
+    ploterr: bool
+        Whether or not to add a panel to plot the different between the numerical and theoretical growth rates.
+    sel_mode: string, "avg" or "inst" or "half"
+    start_t: float
+        The time at which to start the plot.
+    """
+
+    Ham = model([L])
+    Hamname = model.name+(("_"+addn) if addn!="" else "")
+    FName = "{}_FG_L{}_T{}".format(Hamname, L, T)
+    if ip is None:
+        ip = int(L/2)
+    else:
+        FName += "_ip{}".format(ip)
+        if ip < 0:
+            ip = L+ip
+
+    which_boundary = 0
+    if ip < L/4:
+        which_boundary = -1
+    elif ip > 3*L/4:
+        which_boundary = 1
+
+    if model.int_dim == 1:
+        intvec = [1]
+    else:
+        intvec = np.random.randn(model.int_dim) + 1j*np.random.randn(model.int_dim)
+        intvec = intvec / np.linalg.norm(intvec)
+
+    init = GaussianWave([L], (ip,), iprad, k = (ik,), intvec = intvec)
+
+    try:
+        if force_evolve:
+            raise Exception()
+        evodat = EvoDat1D.read(FName)
+    except Exception:
+        evodat = EvoDat1D.from_evolve(Ham, T, dT, init, FName, precision=precision, return_idnorm=False)
+        evodat.save()
+
+    dats = evodat.res[ip,0,:]
+    if which_boundary == 0:
+        amps = evodat.norms + np.log(np.abs(dats)) + np.log(evodat.times + 1e-10)/2
+    else:
+        amps = evodat.norms + np.log(np.abs(dats)) + np.log(evodat.times + 1e-10)*3/2
+    phas = np.unwrap(np.angle(dats))
+
+    init = evodat.res[:,0,0]
+
+    spf = model.SPFMMA()
+
+    count = 0
+    sp0 = None
+    fitaddnow = 1
+    spfits = []
+    for row in spf:
+        if row[3]: # Look for relevant saddle points
+            z = row[0]
+            E = row[1]
+            Hpp = row[4]
+
+            rad = max(1, int(5*iprad))
+
+            if which_boundary == -1:
+                xmin = max(0, ip-rad)
+                xmax = min(L-1, ip+rad)
+                zl = model.GFMMA(E, *[(x+1,ip+1) for x in range(xmin, xmax+1)])
+                tamp = np.sum(zl * (init[xmin:xmax+1]))
+            elif which_boundary == 1:
+                xmin = max(0, ip-rad)
+                xmax = min(L-1, ip+rad)
+                zl = model.GFMMA(E, *[(x-L,ip-L) for x in range(xmin, xmax+1)])
+                tamp = np.sum(zl * (init[xmin:xmax+1]))
+            else:
+                zl = z ** (ip - np.arange(L))
+                tamp = np.sum(zl*init)
+
+            # thissp is the log of G(x,x,t) contributed by this saddle point, with the t-power-law part deducted
+            if which_boundary == 0:
+                thissp = np.log(tamp/z*np.sqrt(1/(2*np.pi))*Hpp/1j) - 1j*E*evodat.times
+            else:
+                thissp = np.log(tamp/z*np.sqrt(1/(8*np.pi))*Hpp) - 1j*E*evodat.times
+
+            if count == 0:
+                sp0 = thissp
+                spfits.append(sp0)
+            else:
+                fitaddnow += np.exp(thissp - sp0)
+                # We divide the later saddle point contributions by the first saddle point contribution
+                # in order to avoid storing too-large numbers.
+                spfits.append(sp0 + np.log(fitaddnow))
+
+            # We take into at max `comp` saddle points.
+            count += 1
+            if count >= comp:
+                break
+
+    sti = int((start_t-evodat.times[0]) / (evodat.times[1]-evodat.times[0]))
+    oti = int((orig_t-evodat.times[0]) / (evodat.times[1]-evodat.times[0]))
+
+    def proc_data (amps, phas):
+        # See explanation in the function documentation above.
+        if sel_mode == "avg":
+            ampr = (amps[sti:]-amps[oti]) / (evodat.times[sti:]-evodat.times[oti])
+            phsr = - (phas[sti:]-phas[oti]) / (evodat.times[sti:]-evodat.times[oti])
+            times = evodat.times[sti:]
+        elif sel_mode == "half":
+            inds = np.arange(int(sti/2), floor(len(amps)/2))
+            ampr = (amps[2*inds]-amps[inds]) / (evodat.times[2*inds]-evodat.times[inds])
+            phsr = - (phas[2*inds]-phas[inds]) / (evodat.times[2*inds]-evodat.times[inds])
+            times = evodat.times[2*inds]
+        elif sel_mode == "inst":
+            ampr = (amps[sti:]-amps[oti:-(sti-oti)]) / (evodat.times[sti]-evodat.times[oti])
+            phsr = - (phas[sti:]-phas[oti:-(sti-oti)]) / (evodat.times[sti]-evodat.times[oti])
+            times = evodat.times[sti:]
+        else:
+            raise Exception(f"Invalid argument sel_mode={sel_mode}")
+        
+        return ampr, phsr, times
+    
+    ampr, phsr, times = proc_data(amps, phas)
+
+    if sel_mode == "inst":
+        if which_boundary == 0:
+            rename = r"$\mathrm{Re}[i \frac{\mathrm{d}}{\mathrm{d}t}[\log(G(0,0,t)\sqrt{t})]]$"
+            imname = r"$\mathrm{Im}[i \frac{\mathrm{d}}{\mathrm{d}t}[\log(G(0,0,t)\sqrt{t})]]$"
+        else:
+            rename = r"$\mathrm{Re}[i \frac{\mathrm{d}}{\mathrm{d}t}[\log(G(0,0,t)t^{3/2})]]$"
+            imname = r"$\mathrm{Im}[i \frac{\mathrm{d}}{\mathrm{d}t}[\log(G(0,0,t)t^{3/2})]]$"
+    else:
+        if which_boundary == 0:
+            rename = r"Re[i log(G(0,0,t)$\sqrt{t}$)/t]"
+            imname = r"Im[i log(G(0,0,t)$\sqrt{t}$)/t]"
+        else:
+            rename = r"Re[i log(G(0,0,t)$t^{3/2}$)/t]"
+            imname = r"Im[i log(G(0,0,t)$t^{3/2}$)/t]"
+
+    # Generate the plots
+    if plot_ax is None:
+        plt.rcParams.update(**PLT_PARAMS)
+        total_plots = 1 + plotre + ploterr
+        if total_plots == 1:
+            plt.figure(figsize=SINGLE_FIGSIZE, layout="constrained")
+            axim = plt.gca()
+        else:
+            if total_plots == 2:
+                _, axs = plt.subplots(1, 2, figsize=DOUBLE_FIGSIZE, layout="constrained")
+            elif total_plots == 3:
+                _, axs = plt.subplots(1, 3, figsize=TRIPLE_FIGSIZE, layout="constrained")
+
+            axim = axs[0]
+            if plotre:
+                axre = axs[1]
+            if ploterr:
+                axerr = axs[1+plotre]
+    else:
+        if isinstance(plot_ax, list) or isinstance(plot_ax, tuple):
+            axim = plot_ax[0]
+        else:
+            axim = plot_ax
+            if plotre:
+                axre = plot_ax[1]
+            if ploterr:
+                axerr = plot_ax[1+plotre]
+
+    # Plot real part and imag part
+    axim.plot(times, ampr, color="C0", label="Numerical")
+    if plotre:
+        axre.plot(times, phsr, color="C1", label="Numerical")
+    
+    for j in range(comp):
+        # Plot 'first j saddle points contriubtion' and compare to numerics, for j = 1, ..., comp
+        this_sp = spfits[j]
+        this_amp = np.real(this_sp)
+        this_phs = np.unwrap(np.imag(this_sp))
+        this_ampr, this_phsr, this_times = proc_data(this_amp, this_phs)
+
+        axim.plot(this_times, this_ampr, color=f"C{2*j+2}", linestyle="--", label=f"{j+1}SP Theo.")
+        if plotre:
+            axre.plot(this_times, this_phsr, color=f"C{2*j+3}", linestyle="--", label=f"{j+1}SP Theo.")
+        if ploterr:
+            axerr.plot(times, np.abs(ampr-this_ampr), color=f"C{2*j+2}", label=f"Im, {j+1}SP")
+            axerr.plot(times, np.abs(phsr-this_phsr), color=f"C{2*j+3}", label=f"Re, {j+1}SP")
+        
+    axim.set_xlabel(r"$t$")
+    axim.set_ylabel(imname)
+    axim.set_title(imname)
+    axim.legend()
+
+    if plotre:
+        axre.set_xlabel(r"$t$")
+        axre.set_ylabel(rename)
+        axre.set_title(rename)
+        axre.legend()
+
+    if ploterr:
+        axerr.set_xscale("log")
+        axerr.set_yscale("log")
+
+        axerr.set_xlabel(r"$t$")
+        axerr.set_ylabel("Error")
+        axerr.set_title("Numerical v.s. SP Error")
+
+    if plot_ax is not None:
+        plt.savefig(FName+sel_mode+".pdf")
+        plt.close()
+
+
 def plot_pointG_1D_WF (model:HamModel, L, T, which_edge, depth, takerange, dT=0.1, force_evolve = False, ip = 0, iprad = 1, ik = 0, addn="", plot_ax = None, takets = [], precision = 0, potential = None):
+    """
+    For a 1D chain, do time evolution to extract G(x,x0,t) for a given point x0 and a range of x.
+    Plot G(x,x0,t) as a function of x, and compare to theoretical expectations.
+    Two plots will be generated, corresponding to the amplitude and phase respectively.
+    In each plot, the actual wave function at different time steps is superimposed with the theoretical expectation.
+
+    Parameters:
+    model: HamModel
+        The Hamiltonian model to be used.
+    L: int
+        The size of the 1D chain.
+    T: float
+        The time to evolve to.
+    which_edge: int
+        If 0, plot near the left edge; if 1, plot near the right edge.
+    depth: int
+        The initial position of the wave packet, as measured from the edge. 0 means the site on the boundary, 1 means one site from the boundary, etc.
+    takerange: int
+        The number of sites, measured from the boundary, to be plotted.
+    plot_ax: tuple of two plt.Axes
+        If given, the plot will be drawn on these axes. If not given, a new figure will be created.
+    takets: list of floats
+        Each element corresponds to a time when we take a snapshot of the wave function. Time points should be in the range [0,T].
+        Default empty, in which case only one snapshot is taken at T.
+    potential: array of length L*model.int_dim
+        Corresponding to a diagonal potential that is added to the Hamiltonian by hand. 0 by default.
+    ** FOR OTHER PARAMETERS SEE `plot_pointG_1D_tslope` **
+    """
 
     Ham = model([L])
     Hamname = model.name+(("_"+addn) if addn!="" else "")
@@ -225,11 +479,33 @@ def plot_pointG_1D_WF (model:HamModel, L, T, which_edge, depth, takerange, dT=0.
     
     if plot_ax is None:
         ax2.legend(loc='upper left', bbox_to_anchor=(1, 1))
+    else:
+        ax1.legend()
+        ax2.legend()
+    
+    if plot_ax is not None:
+        plt.savefig(FName+f"_wf[{left}:{right}].pdf")
+        plt.close()
 
-    plt.savefig(FName+f"_wf[{left}:{right}].pdf")
-    plt.close()
+def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve=False, ip = None, iprad = 1, ik = 0, addn="", start_t = 5, error_log = False, precision = 0, plot_ax = None):
+    """
+    For a 1D chain, do time evolution to extract G_ab(x,x,t) for a given point x and internal degrees of freedom a, b.
+    Plot G_ab(x,x,t)/G_11(x,x,t) as a function of x, and compare to theoretical expectations (for now the theory is only available in the bulk / PBC).
 
-def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve= False, output=print, ip = None, iprad = 1, ik = 0, addn="", start_t = 5, error_log = False, precision = 0):
+    Parameters:
+    model: HamModel
+        The Hamiltonian model to be used.
+    L: int
+        The size of the 1D chain.
+    T: float
+        The time to evolve to.
+    plot_ax: plt.Axes or tuple of two plt.Axes
+        If given, the plot will be drawn on this axi(e)s. If not given, a new figure will be created.
+    error_log: bool, default False
+        If True, generates two plots, the first plots G_ab(t)/G_11(t),
+        the second plots in log scale the different of this numerical value with the theoretical prediction.
+    ** FOR OTHER PARAMETERS SEE `plot_pointG_1D_tslope` **
+    """
 
     Ham = model([L])
     B = Ham.int_dim
@@ -244,15 +520,15 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve= False, outpu
 
     FName0 = f"{Hamname}_FG_L{L}T{T}"
     if ip is None:
-        ip = int(L/2)
+        ip = int(abs(L)/2)
     else:
         FName0 += f"ip{ip}"
         if ip < 0:
-            ip = L+ip
+            ip = abs(L)+ip
 
     for i in range(B):
         FName = f"{FName0}_B{i}"
-
+        # Initialize with the spin points in the i-th axis
         intvec = [0]*B
         intvec[i] = 1
 
@@ -323,18 +599,20 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve= False, outpu
          for j in range(B)
         ] for i in range(B)
         ]
-
-    lw = 1
-
-    plt.rcParams.update({"font.size":8, "lines.linewidth":lw, "mathtext.fontset":"cm"})
-
-    # Generate the plots
     
-    if not error_log:
-        plt.figure(figsize=(3.375, 2.4), layout="constrained")
-        ax1 = plt.gca()
+    if plot_ax is None:
+        plt.rcParams.update(**PLT_PARAMS)
+        # Generate the plots
+        if not error_log:
+            plt.figure(figsize=SINGLE_FIGSIZE, layout="constrained")
+            ax1 = plt.gca()
+        else:
+            _, (ax1,ax2) = plt.subplots(1, 2, figsize=DOUBLE_FIGSIZE, layout="constrained")
     else:
-        _, (ax1,ax2) = plt.subplots(1, 2, figsize=(6, 2.4), layout="constrained")
+        if error_log:
+            (ax1, ax2) = plot_ax
+        else:
+            ax1 = plot_ax
 
     # Plot real part and imag part
 
@@ -370,8 +648,9 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve= False, outpu
         ax2.set_title("Numerical v.s. Theory Error")
         ax2.legend()
 
-    plt.savefig(FName0+"_VEC.pdf")
-    plt.close()
+    if plot_ax is not None:
+        plt.savefig(FName0+"_VEC.pdf")
+        plt.close()
 
 def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 0, ipdepth = 0, kspan = 0.1, dT=0.2, force_evolve = False, addname = "", snapshots = []):
 
@@ -456,6 +735,9 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     else:
         ksamp_zls_gfmma = model2d.GFMMAProj(Ns, para_edge,  *[(ip_perp-Lperp,x-Lperp) for x in range(xmin, xmax+1)])
     Eks = np.array([row[0] for row in ksamp_zls_gfmma])
+    print("List of Eks:")
+    print(Eks)
+    print("======")
     ksamp_zls = np.array([row[1] for row in ksamp_zls_gfmma])
         
     if Ns != L1d:

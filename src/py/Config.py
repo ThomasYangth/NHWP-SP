@@ -1,6 +1,7 @@
 import os
 import json
 
+# Read configurations from Config.json
 config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, os.pardir, "Config.json")
 if not os.path.isfile(config_file):
     raise Exception("Configuration file not found at: " + config_file)
@@ -28,9 +29,11 @@ except Exception as e:
     MMA_CALLER = ["NO MATHEMATICA PROVIDED, CHECK Config.json"]
     print("MMA_CALLER not found.")
 
+# Some plotting macro parameters
 FONTSIZE = 8
 SINGLE_FIGSIZE = (3.2, 2.4)
 DOUBLE_FIGSIZE = (6, 2.4)
+TRIPLE_FIGSIZE = (7, 2.4)
 SQUARE_FIGSIZE = (3.5, 3.5)
 SQUARE_SHOW_FIGSIZE = (8, 8)
 LINEWIDTH = 1

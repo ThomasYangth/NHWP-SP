@@ -24,12 +24,14 @@ If[MemberQ[$Path,dir],0,AppendTo[$Path,dir]];
 (*CommandLine = $CommandLine;
 StartIndex = 4;*)
 
+
 (* ::Text:: *)
 (*Use this for wolframscript*)
 
 
 (*CommandLine = $ScriptCommandLine;
 StartIndex = 2;*)
+
 
 (* ::Text:: *)
 (*Import from file*)
@@ -46,7 +48,7 @@ StartIndex = "MMA_CL_INDEX"/.ConfigVals;
 (*If there is no input parameters, or -help is called, we output the help string.*)
 
 
-If[Length[CommandLine]<=StartIndex||CommandLine[[2]]=="-help",
+If[Length[CommandLine]<=StartIndex||CommandLine[[StartIndex]]=="-help",
 	Print["Got Command Line:"];
 	Print[CommandLine];
 	Print[Import["README.txt"]];
@@ -284,6 +286,8 @@ EfunBatchK[kdens_,xpairs_] :=
 		]
 	]
 )
+
+
 
 (* ::Text:: *)
 (*This is the main function that parses the command line arguments.*)

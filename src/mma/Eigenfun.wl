@@ -9,9 +9,13 @@ BeginPackage["Eigenfun`"];
 
 EigenfunctionL::usage = "[Ham,E,x1,x2] -> <x1|E><<E|x2>";
 EigenfunctionR::usage = "[Ham,E,x1,x2] -> <L+1-x1|E><<E|L+1-x2>";
+EigfunL::usage = "EigfunL[Ham_,En_?NumericQ,x1_,x2_,m_,bos_,degpos_]";
+EigfunSepL::usage = "EigfunL[Ham_,En_?NumericQ,x1_,x2_,m_,bos_,degpos_]";
 FlowBetas::usage = "FlowBetas";
 
 Begin["`Private`"];
+
+DEBUG = False;
 
 (*Judge whether expr[var] is singular at var=0*)
 Judge1[expr_,var_]:=Quiet[With[{tval=expr/.var->0},tval===ComplexInfinity||tval===Indeterminate]]
@@ -67,6 +71,9 @@ Module[{z, betas, degpos, pbctop, gbzgapfun, gbzgapfunder, gbztouchings, betaord
 	];
 	(* Find all energies at which we will touch the GBZ, excluding En itself *)
 	gbztouchings = searchGbzTouching[gbzgapfun, gbzgapfunder, 10^-4, pbctop-Im[En]];
+	gbztouchings = Select[gbztouchings, (#>=10^-4)&];
+	(*Print["gbztouchings"];
+	Print[gbztouchings];*)
 	If[Length[gbztouchings]==0 && degpos != m, Print[(
 		"ERR: Saddle point not relevant: No gbz touchings, degpos is "<>ToString[degpos]<>", neg degree "<>ToString[m]<>"\n"
 		<>"Energy "<>ToString[En]<>", Roots "<>ToString[betas]<>"\n"
@@ -101,11 +108,37 @@ Module[{sps,spEs,e,m,z,betas,degpos,bos},
 			Ordering[bdifs,1][[1]]];
 	(* Find all betaorderings *)
 	bos = FlowBetas[Ham, e, m];
+	If[DEBUG,
+		Print["m"];
+		Print[m];
+		Print["degpos"];
+		Print[degpos];
+		Print["bos"];
+		Print[bos];
+	];
 	If[Length[bos]==0, Print["ERR: Saddle point not relevant."]; Exit[]];
 	Table[
-		With[{f=EigfunL[Ham,e,xt[[1]],xt[[2]],m,bos,degpos]},
+		Module[{fin,f1t,f1f,f2t,f2f,v1,v2,v,v0},
 			(* We average over exchange of the two degenerate roots to rule out Sqrt[E] terms *)
-			(f[eps,True]+f[eps,False]-f[-eps,True]-f[-eps,False])/(4eps)
+			fin = EigfunSepL[Ham,e,m,bos,degpos];
+			f1t = fin[xt[[1]],xt[[2]],eps,True];
+			f1f = fin[xt[[1]],xt[[2]],eps,False];
+			v1 = (f1t-f1f)/(2 Sqrt[eps]);
+			f2t = fin[xt[[1]],xt[[2]],-eps,True];
+			f2f = fin[xt[[1]],xt[[2]],-eps,False];
+			v2 = (f2t-f2f)/(2 Sqrt[-eps]);
+			v = MaximalBy[{(v1+v2)/2,(v1-v2)/2},Norm][[1]];
+			v0 = (f1t+f1f+f2t+f2f)/4;
+			If[DEBUG,
+				Print["xs:", xt];
+				Print["bos ", bos, " m ", m, " degpos ",degpos];
+				Print["v1", v1];
+				Print["v2", v2];
+				Print["v", v];
+				Print["fin[0]", v0];
+			];
+			(Times @@ (v[[1;;2]])) * v0[[3]]
+			(*(f[eps,True]+f[eps,False]-f[-eps,True]-f[-eps,False])/(4eps)*)
 		]
 		,{xt,xslst}
 	]
@@ -146,11 +179,72 @@ Module[{Eigfun},
 				With[{xs = Range[0,(Length[bR]-1)]},
 				-Inverse[Transpose[VandermondeMatrix[bR]]] . (bm^xs + atmp*bmp^xs)]
 			];
+			If[DEBUG, Print["bL",bL,"bR",bR,"bm",bm,"bmp",bmp]];
 			(*Calculate the final wave function*)
 			N[
 				(Plus@@(bL^(x1)*aL)+bm^x1+amp*bmp^x1)
 				*(Plus@@(bR^(-x2)*atR)+bm^(-x2)+atmp*bmp^(-x2))
 				/(1+amp*atmp)
+			]
+		,{ord,bos}]
+	];
+	Eigfun
+]
+
+
+EigfunSepL[Ham_,En_?NumericQ,m_,bos_,degpos_]:=
+Module[{Eigfun},
+	(* For each betaordering, calculate the wave function, and then add them together *)
+	Eigfun[x1_,x2_,e_,exch_:False]:=
+	Module[{bm,bmp,bL,bR,am,amp,aL,atm,atmp,atR,thisbetas},
+		thisbetas = SortBy[Quiet[z/.Solve[Ham[z]==En+e,z], Solve::ratnz], Abs];
+		(* Insert exchange of the two roots degenerate at this saddle point *)
+		If[DEBUG, Print[degpos]; Print[thisbetas]];
+		If[exch, thisbetas[[degpos;;degpos+1]] = thisbetas[[degpos+1;;degpos;;-1]]];
+		If[DEBUG, Print[thisbetas]];
+		Plus @@ Table[
+			bm=thisbetas[[ord[[m]]]];
+			bmp=thisbetas[[ord[[m+1]]]];
+			bL=thisbetas[[ord[[;;m-1]]]];
+			bR=thisbetas[[ord[[m+2;;]]]];
+			(*Set am and \tilde am = 1*)
+			am = If[Length[bL]<=0,
+				1,
+				Product[(1/bmp-1/b),{b,bL}]
+			];
+			amp = If[Length[bL]<=0,
+				-1,
+				-Product[(1/bm-1/b),{b,bL}]
+			];
+			atm = If[Length[bR]<=0,
+				1,
+				Product[(bmp-b),{b,bR}]
+			];
+			atmp = If[Length[bR]<=0,
+				-1,
+				-Product[(bm-b),{b,bR}]
+			];
+			(*Solve for the rest of a and \tilde a*)
+			aL = If[Length[bL]<=0,
+				0,
+				With[{xs = Range[0,-(Length[bL]-1),-1]},
+				-Inverse[Transpose[VandermondeMatrix[(bL)^-1]]] . (am*bm^xs + amp*bmp^xs)]
+			];
+			atR = If[Length[bR]<=0,
+				0,
+				With[{xs = Range[0,(Length[bR]-1)]},
+				-Inverse[Transpose[VandermondeMatrix[bR]]] . (atm*bm^xs + atmp*bmp^xs)]
+			];
+			If[DEBUG,
+				Print["bL ",bL," bR ",bR," bm ",bm," bmp ",bmp];
+				Print["aL ",aL," am ",am," amp ",amp];
+				Print["atR ",atR," atm ",atm," atmp ",atmp];
+			];
+			(*Calculate the final wave function*)
+			N[
+				{(Plus@@(bL^(x1)*aL)+am*bm^x1+amp*bmp^x1),
+				(Plus@@(bR^(-x2)*atR)+atm*bm^(-x2)+atmp*bmp^(-x2)),
+				1/(am*atm+amp*atmp)}
 			]
 		,{ord,bos}]
 	];

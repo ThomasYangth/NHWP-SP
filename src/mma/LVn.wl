@@ -355,23 +355,28 @@ FindPBCTop[Heq_,dim_,prec_:10]:=
 (*Functions that create outputs*)
 
 
-SPFlows[Heq_,dim_,v_:0,prec_:10,print_:True,zlvlgiven_:0]:=
+SPFlows[Heq_,dim_,v_:0,prec_:10,print_:True,zlvlgiven_:0,maxno_:0]:=
 	Module[{vels,sps,zlvl,zs,ks,res},
 	
 		vels = If[Head[v]===List,v,ConstantArray[v,dim]];
 		sps = SPS[Heq,dim,vels];
 		zs = Zs[dim];
 		zlvl = If[zlvlgiven==0, FindPBCTop[Heq,dim,prec]+1, zlvlgiven];
+
+		maxn = If[maxno==0, Length[sps], maxno];
+		curno = 0;
 		
 		(*Get a list of {windings,phase_information}*)
 		res = Table[
-			If[zlvl-Lam[sp,vels]>0,
-				IntegrateWinding[
+			If[zlvl-Lam[sp,vels]>0 && curno < maxn, (*Do the integration only if curno < maxno*)
+				intg = IntegrateWinding[
 					Map[#[[1]]&,
 						Flow[Heq,dim,sp[[1]],sp[[2]],zlvl-Lam[sp,vels],SphereToCarte[#],vels,1]
 					]&,
 					dim, prec
-				],
+				];
+				If[intg[[1]] != 0, curno++];
+				intg,
 				{0,"N/A"} (*If lambda >= zlvl, there is nothing to find*)
 			],
 			{sp,sps}

@@ -17,7 +17,7 @@ def GaussianWave (bcs, center, radius, k = None, intvec = None):
     if intvec is None:
         intvec = [1]
     coords = np.meshgrid(*[[i for i in range(abs(tlen))] for tlen in bcs], indexing="ij")
-    distmat = 0
+    distmat = np.zeros((np.size(coords[0]),), dtype=complex)
     xs = []
     for i in range(dim):
         if bcs[i] > 0:
@@ -36,10 +36,13 @@ def GaussianWave (bcs, center, radius, k = None, intvec = None):
         except:
             radius = [radius]*dim
         for i in range(dim):
-            if bcs[i] > 0:
-                distmat += -xs[i]**2/(2*radius[i]**2) + 1j*xs[i]*k[i]
+            if radius[i] == 0: # Zero radius is a delta function
+                distmat[np.array(xs[i])!=0] += -np.Infinity
             else:
-                distmat += -xs[i]**2/(2*radius[i]**2) + 1j*xs[i]*k[i]
+                if bcs[i] > 0:
+                    distmat += -xs[i]**2/(2*radius[i]**2) + 1j*xs[i]*k[i]
+                else:
+                    distmat += -xs[i]**2/(2*radius[i]**2) + 1j*xs[i]*k[i]
     exponvec = np.exp(distmat)
     totvec = np.kron(np.reshape(exponvec, [np.size(exponvec), 1]), np.reshape(intvec, [np.size(intvec), 1]))
     return totvec / np.linalg.norm(totvec)

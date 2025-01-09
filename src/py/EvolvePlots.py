@@ -678,34 +678,39 @@ def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, i
 
     init = evodat.res[:,0,0]
 
-    spf = model.SPFMMA()
+    row = model.FirstEff()
+    E = row[1]
 
-    for row in spf:
-        if row[3]:
-            z = row[0]
-            E = row[1]
-            Hpp = row[4]
+    has_wf = False
 
-            if which_boundary == -1:
-                xmin = max(0, ip-10*iprad)
-                xmax = min(L-1, ip+10*iprad)
-                zl = model.GFMMA(E, *[(x+1,ip+1) for x in range(xmin, xmax+1)])
-                tamp = np.sum(zl * (init[xmin:xmax+1]))
-            elif which_boundary == 1:
-                xmin = max(0, ip-10*iprad)
-                xmax = min(L-1, ip+10*iprad)
-                zl = model.GFMMA(E, *[(x-L,ip-L) for x in range(xmin, xmax+1)])
-                tamp = np.sum(zl * (init[xmin:xmax+1]))
-            else:
-                zl = z ** (ip - np.arange(L))
-                tamp = np.sum(zl*init)
+    try:
+        z = row[0]
+        E = row[1]
+        Hpp = row[4]
 
-            if which_boundary == 0:
-                thissp = np.log(tamp/z*np.sqrt(1/(2*np.pi))*Hpp/1j)
-            else:
-                thissp = np.log(tamp/z*np.sqrt(1/(8*np.pi))*Hpp)
+        if which_boundary == -1:
+            xmin = max(0, ip-10*iprad)
+            xmax = min(L-1, ip+10*iprad)
+            zl = model.GFMMA(E, *[(x+1,ip+1) for x in range(xmin, xmax+1)])
+            tamp = np.sum(zl * (init[xmin:xmax+1]))
+        elif which_boundary == 1:
+            xmin = max(0, ip-10*iprad)
+            xmax = min(L-1, ip+10*iprad)
+            zl = model.GFMMA(E, *[(x-L,ip-L) for x in range(xmin, xmax+1)])
+            tamp = np.sum(zl * (init[xmin:xmax+1]))
+        else:
+            zl = z ** (ip - np.arange(L))
+            tamp = np.sum(zl*init)
 
-            break
+        if which_boundary == 0:
+            thissp = np.log(tamp/z*np.sqrt(1/(2*np.pi))*Hpp/1j)
+        else:
+            thissp = np.log(tamp/z*np.sqrt(1/(8*np.pi))*Hpp)
+
+        has_wf =  True
+
+    except:
+        has_wf = False
     
     # Deduct the exponential growth rate profile
     amps = amps - np.imag(E)*(evodat.times - evodat.times[0])
@@ -721,7 +726,10 @@ def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, i
         ax = plot_ax
 
     ax.plot(times, amps, label="Numerical", color="C0")
-    ax.plot(times, np.real(thissp)-decay_exp*np.log(times), label="Theory", color="C1", linestyle="--")
+    if has_wf:
+        ax.plot(times, np.real(thissp)-decay_exp*np.log(times), label="Theory", color="C1", linestyle="--")
+    else:
+        ax.plot(times, amps[-1]-decay_exp*(np.log(times)-np.log(times[-1])), label="$t^{"+str(decay_exp)+"}$", color="C1", linestyle="--")
     ax.set_xscale("log")
     ax.set_xlabel("$t$")
     ax.set_ylabel(r"$log|G(t)|-\mathrm{Im}E_s t$")

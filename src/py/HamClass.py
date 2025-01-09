@@ -60,6 +60,10 @@ def callMMA(*args):
     except Exception as e:
         raise Exception(f"Error occured during json loading: {e}\nOutput string:\n#####\n{output}\n#####")
 
+    print("CALLMMA RETURNED:\n#####\n")
+    print(output)
+    print("##########")
+
     # The Mathematica output has a headed nested list structure, we will parse it into Python list.
     def eliminateList(lst):
 
@@ -171,13 +175,13 @@ class HamModel:
             invalsp = []
             # See documentation of SPFMMA for the format of spf
             for row in spf:
-                if row[3]:
+                if row[3] != 0:
                     valsp.append(row[1])
                 else:
                     invalsp.append(row[1])
 
-            plt.scatter(np.real(valsp), np.imag(valsp), s=s2, label = "Valid SP")
-            plt.scatter(np.real(invalsp), np.imag(invalsp), s=s2, label = "Invalid SP")
+            plt.scatter(np.real(valsp), np.imag(valsp), s=s2, label = "Relevant SP")
+            plt.scatter(np.real(invalsp), np.imag(invalsp), s=s2, label = "Irrelevant SP")
         
         plt.legend()
         plt.savefig(self.name+"OPSpec.pdf")
@@ -366,7 +370,7 @@ class HamModel:
             z: complex
             H(z): complex
             lambda: float, growth rate
-            validity: bool, whether the saddle point is relevant
+            winding: int, the winding number of the saddle point, non-zero means relevant
             prefactor: complex, (i*H''(z))^(-1/2)*winding
             Rvecs, Lvecs: two lists of complex, the right/left eigenvectors (of internal degree of freedoms) corresponding to the saddle point
         The list is sorted in descending order of lambda.
@@ -387,6 +391,36 @@ class HamModel:
         if self.sp_dim != 2:
             raise Exception("SPFMMAProj is only available for 2D models.")
         return callMMA(self.to_mathematica(), "-dim", self.sp_dim, "-k", k, "-edge", "x" if which_edge<=0 else "y", "-spflow")
+    
+    def SPEffMMA (self, spno, v = 0):
+        """
+        Similar to SPFMMA, but now only return the first `spno` **relevant** saddle points.
+        """
+        if self.sp_dim > 2:
+            raise Exception("SPFMMA is only available for 1D and 2D models.")
+        return callMMA(self.to_mathematica(), "-dim", self.sp_dim, "-v", self._format_v(v), "-effspf", spno)
+    
+    def FirstEff (self, v=0):
+        """
+        Returns the first effective saddle point information. Raises an Exception if no relevant saddle points are found.
+        Raises a warning if the first two relevant saddle points have similar imaginary energies.
+        """
+        spf = self.SPEffMMA(2, v=v)
+        if len(spf) == 0:
+            raise Exception("NO RELEVANT SADDLE POINT FOUND!")
+        if len(spf) == 2:
+            if np.imag(spf[0][1]-spf[1][1]) < 0.1:
+                print("****WARNING**** CLOSE EIGENVALUES, RESULT MAY BE OFF")
+                print(f"E1 = {spf[0][1]}, E2 = {spf[1][1]}")
+        return spf[0]
+    
+    def SPEffMMAProj (self, spno, k, which_edge):
+        """
+        Similar to SPFMMAProj, but now only return the first `spno` **relevant** saddle points.
+        """
+        if self.sp_dim != 2:
+            raise Exception("SPFMMAProj is only available for 2D models.")
+        return callMMA(self.to_mathematica(), "-dim", self.sp_dim, "-k", k, "-edge", "x" if which_edge<=0 else "y", "-effspf", spno)
 
     # Get the Green's function amplitude
     def GFMMA (self, E, *xpairs):

@@ -9,7 +9,7 @@ BeginPackage["LV1`"];
 SPS1::usage="SPS1[Heq_,v_:0] = Table[{z,w}]";
 SolvePath1::usage="SolvePath1[Heq_,z0_,H0_,T_,dir_,v_:0,idir_:-1,FindBZI_:0] = {z,w}";
 Flow1::usage="Flow1[Heq_,z0_,w0_,T_,dir_,v_:0,idir_:-1] = SolvePath1[..][T]";
-SPFlows1::usage="SPFlows1[Hmat_,v_,print_:True]";
+SPFlows1::usage="SPFlows1[Hmat_,v_,print_:True,maxno_:0]";
 GetGrowthNew1::usage="GetGrowthNew1[Hmat_,v_:0,print_:True]";
 GrowthList1::usage="Table[GetGrowthNew1[Hmat,v],{v,vs}]";
 PlotGrowth1::usage="PlotGrowth1[Hmat_,vrng_,prec_:20]";
@@ -203,36 +203,44 @@ FindBZItsc[Heq_,sps_,v_:0,BZrad_:1]:=
 		]
 	]
 	
-Windings[Heq_,sps_,v_:0,BZrad_:1]:=
+Windings[Heq_,sps_,v_:0,BZrad_:1,maxno_:0]:=
 Module[{l,PBCtop,lam},
 	(*Find the largest Im on the PBC Spectrum of the Hamiltonian*)
 	PBCtop = Quiet[NMaximize[
 				Max[Im[l/.Solve[Heq[BZrad*Exp[I*k],l]==0,l]]]+v*Log[BZrad],{k,0,2Pi}
 			]][[1]] + 0.1;
+	(*If maxno is not given, set to maximum.*)
+	maxn = If[maxno==0, Length[sps], maxno];
+	curno = 0; (*Number of current saddle points with which we already found a non-zero winding*)
 	Table[
-		lam = Lam1[sps[[i]],v]; (*The lambda value of this saddle point*)
-		If[lam < PBCtop,
-		
-			(*If lambda < PBCtop, we flow the saddle point upwards*)
-			Plus@@Table[
-				dir*Sign[
-					Abs[
-						(*Flow the saddle point upwards, until its imaginary part is
-						  bigger than the top of the PBC spectrum*)
-						Flow1[
-							Heq, sps[[i,1]], sps[[i,2]],
-							PBCtop - lam,
-							dir, v, 1
-						][[1]] (*Pick the z[T]*)
-					] - BZrad (*And see whether z[T] is larger or smaller than BZrad*)
-				],
-				{dir,{1,-1}}
-			]/2, (*We check whether Sign[z[T]-BZrad] is the same for either
-				     flow directions; if it's the same, this point is invalid;
-				     if it's opposite, this point is valid*)
-				     
-			0 (*If lambda >= PBCtop, it is invalid*)
-		],
+		If[curno >= maxn, 0, (* If we already found enough relevant saddle points, no longer evaluate the vailidity of the rest.*)
+			lam = Lam1[sps[[i]],v]; (*The lambda value of this saddle point*)
+			If[lam < PBCtop,
+			
+				(*If lambda < PBCtop, we flow the saddle point upwards*)
+				thisWind = Plus@@Table[
+					dir*Sign[
+						Abs[
+							(*Flow the saddle point upwards, until its imaginary part is
+							bigger than the top of the PBC spectrum*)
+							Flow1[
+								Heq, sps[[i,1]], sps[[i,2]],
+								PBCtop - lam,
+								dir, v, 1
+							][[1]] (*Pick the z[T]*)
+						] - BZrad (*And see whether z[T] is larger or smaller than BZrad*)
+					],
+					{dir,{1,-1}}
+				]/2; (*We check whether Sign[z[T]-BZrad] is the same for either
+						flow directions; if it's the same, this point is invalid;
+						if it's opposite, this point is valid*)
+				If[thisWind!=0, curno++];
+				thisWind, (* Return thisWind *)
+						
+				0 (*If lambda >= PBCtop, it is invalid*)
+			]
+		]
+		,
 		{i,Length[sps]}
 	]
 ]
@@ -276,21 +284,26 @@ GetH2[Heq_,sp_,v_:0]:=
 
 (*This function prints out the list of saddle points along with their lambda
   and BZ-intersecting property*)
-SPFlows1[Hmat_,v_:0,print_:True]:=
+SPFlows1[Hmat_,v_:0,print_:True,maxno_:0]:=
 Module[{Heq,sps,result,windings},
 	Heq=Evaluate@CharacteristicPolynomial[Hmat[#1],#2]&;
 	sps=SPS1[Heq,v];
-	windings = Windings[Heq,sps,v,1];
+	windings = Windings[Heq,sps,v,1,maxno];
 	result = Join[
 			Table[{sp[[1]],sp[[2]],Lam1[sp,v]},{sp,sps}],
-			Table[{a!=0},{a,windings}],
+			Table[{a},{a,windings}],
 			Table[{-Sqrt[I/(-GetH2[Heq,sps[[i]],v])]*windings[[i]]},{i,Length[sps]}],
-			Table[With[
-				{HmE = Hmat[sp[[1]]]-IdentityMatrix[Dimensions[Hmat[sp[[1]]]][[1]]]*sp[[2]]},
-				{
-				NullSpace[HmE,Tolerance->10^(-12)],
-				NullSpace[Transpose[HmE],Tolerance->10^(-12)]
-				}]
+			Table[
+				If[Dimensions[Hmat[sp[[1]]]][[1]] == 1,
+					{{{1}},{{1}}},
+					With[
+					{HmE = Hmat[sp[[1]]]-IdentityMatrix[Dimensions[Hmat[sp[[1]]]][[1]]]*sp[[2]]},
+						{
+						NullSpace[HmE,Tolerance->10^(-12)],
+						NullSpace[Transpose[HmE],Tolerance->10^(-12)]
+						}
+					]
+				]
 				,{sp,sps}],
 			2
 		];
@@ -299,7 +312,7 @@ Module[{Heq,sps,result,windings},
 		Print["Saddle Points:"];
 		Print[Grid[
 			Join[
-				{{"z","E","lambda","wind","1/Sqrt[I H''[z]]","Rvecs","Lvecs"}},
+				{{"z","E","lambda","winding","1/Sqrt[I H''[z]]","Rvecs","Lvecs"}},
 				result
 			],
 			Frame->All
@@ -322,3 +335,6 @@ Module[{vs,gs},
 
 End[];
 EndPackage[];
+
+
+

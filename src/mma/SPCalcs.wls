@@ -79,7 +79,8 @@ dim = 1;
 prec = 20;
 edge = 0;
 v = 0;
-k = 0;
+k = Null;
+spcDebug = False;
 
 ClearAll[z,l,f];
 
@@ -126,6 +127,34 @@ Module[{sps,pos,res},
 				],
 				"ExpressionJSON", "Compact"->True
 			]
+		]
+	]
+]
+
+FspfEff[nsp_]:=
+Module[{sps,pos,res},
+	InitHam[];
+	spf = If[dim==1,
+		(*One-dimensional case*)
+			LV1`SPFlows1[Hmat, v, False, nsp],
+			(*Higher-dimensional case*)
+			If[dim == 2,
+				LVn`SPFlows[Heq, 2, v, 10, False, 0, nsp],
+				Print["ERR::-spflow now only supported for dim = 1 or 2"];Abort[]
+			]
+		];
+	effsps = {};
+	haveSp = 0;
+	For[i=1, haveSp < nsp && i<=Length[spf], i++,
+		With[{spinfo = spf[[i]]},
+			If[spinfo[[4]] != 0,
+				AppendTo[effsps, spinfo]; haveSp++
+			]
+		]
+	];
+	Print[
+		ExportString[effsps,
+			"ExpressionJSON", "Compact"->True
 		]
 	]
 ]
@@ -260,6 +289,7 @@ If[AllTrue[xpairs, #>0&, 2],
 EfunBatchK[kdens_,xpairs_] :=
 (
 	InitHam[False]; (*Initialize the Hamiltonian in its original 2D form*)
+	If[spcDebug, Print["Hamiltonian Initialized"]];
 	ks = Table[2*Pi*i/kdens,{i,0,kdens-1}];
 	EigenF = If[AllTrue[xpairs, #>0&, 2], EigenfunctionL,
 		If[AllTrue[xpairs, #<0&, 2], EigenfunctionR,
@@ -276,7 +306,10 @@ EfunBatchK[kdens_,xpairs_] :=
 	(* Creates a list of {saddle point energy, {1/Sqrt[H''[zs]]*<x|E><<E|x> for all x pairs}} for each H[k] *)
 	ExportJSON[
 		Table[
-			With[{spf = SelectFirst[SPFlows1[HF[k],0,False],#[[4]]&]}, (* Select the relevant saddle point *)
+			If[spcDebug, Print["Doing k = "<>ToString[k]]];
+			With[{spf = SelectFirst[SPFlows1[HF[k],0,False,1],(#[[4]] != 0)&]}, (* Select the relevant saddle point *)
+				If[spcDebug, Print["Got spf: "<>ToString[spf]]];
+				If[spcDebug, Print["Passing to EigenF: "<>ToString[{TeXForm[Evaluate@HF[k][zeta][[1,1]]], spf[[2]], xpairs}]]];
 				{
 					spf[[2]] (* spf[[2]] is the saddle point energy *),
 					spf[[5]] * EigenF[(Evaluate@HF[k][#][[1,1]])&, spf[[2]], xpairs] (* spf[[5]] is 1/Sqrt[H''[zs]] *)
@@ -303,8 +336,10 @@ Switch[CommandLine[[nowind]],
 	"-edge",edge=CommandLine[[nowind+1]];nowind=nowind+2,
 	"-v",v=ToExpression[CommandLine[[nowind+1]]];nowind=nowind+2,
 	"-k",k=ToExpression[CommandLine[[nowind+1]]];nowind=nowind+2,
+	"-debug",spcDebug=True;nowind=nowind+1,
 	"-sps",Fsps[False];Break[],
 	"-spflow",Fsps[True];Break[],
+	"-effspf",FspfEff[ToExpression[CommandLine[[nowind+1]]]];Break[],
 	"-lv",Flv[Flatten[ToExpression/@(CommandLine[[nowind+1;;]])]];Break[],
 	"-hk",Fhk[Flatten[ToExpression/@(CommandLine[[nowind+1;;]])]];Break[],
 	"-ef",Efun[ToExpression[CommandLine[[nowind+1]]],ToExpression[CommandLine[[nowind+2]]]];Break[],

@@ -1,73 +1,109 @@
 import sys
 sys.path.append("..")
 
-from src.py.EvoPlotScripts import plot_pointG_1D_tslope, plot_and_compare_2D_Edge, plot_pointG_1D_WF
-from src.py.HamLib import GenMulti, GenHN2D
+from src.py.EvoPlotScripts import *
+from src.py.HamLib import *
 
-def runX():
+def run1Dmodel_everything (model, L, T, comp=1):
 
-    model = GenMulti({2:0.0995338 - 1.4427j, 1:1.02306 + 0.577343j ,0:-1.14803 - 0.485631j, -1:-1.80091 + 0.196978j, -2:-0.0842039 - 1.83081j}, 1, "ModelX")
-    plot_pointG_1D_tslope(model, 200, 50, ip=0, force_evolve=True)
-    plot_pointG_1D_tslope(model, 200, 50, ip=-1, force_evolve=True)
-    plot_pointG_1D_tslope(model, 200, 50, ip=100, force_evolve=True)
+    print("##################################")
+    print("NOW RUNNING:::")
+    print(model.name)
+    print("##################################")
 
-def runX_WF():
-    model = GenMulti({2:0.0995338 - 1.4427j, 1:1.02306 + 0.577343j ,0:-1.14803 - 0.485631j, -1:-1.80091 + 0.196978j, -2:-0.0842039 - 1.83081j}, 1, "ModelX")
-    plot_pointG_1D_WF(model, 200, 50, 0, 0, 10, iprad=5, takets=[0, 0.2, 0.5, 1, 3, 5, 10], force_evolve=True)
+    hL = int(L/2)
+    model.OBCPBCSpec_1D()
+    print("######### LEFT EXPONENT #########")
+    plot_pointG_1D_exponent(model, L, T, ip=0, comp=comp)
+    print("######### MIDDLE EXPONENT #########")
+    plot_pointG_1D_exponent(model, L, T, ip=hL, comp=comp)
+    print("######### RIGHT EXPONENT #########")
+    plot_pointG_1D_exponent(model, L, T, ip=-1, comp=comp)
+    print("######### LEFT SLOPE #########")
+    plot_pointG_1D_tslope(model, L, T, ip=0)
+    print("######### MIDDLE SLOPE #########")
+    plot_pointG_1D_tslope(model, L, T, ip=hL)
+    print("######### RIGHT SLOPE #########")
+    plot_pointG_1D_tslope(model, L, T, ip=-1)
+    if model.int_dim == 1:
+        print("######### LEFT WAVE FUNCTION #########")
+        plot_pointG_1D_WF(model, L, T, 0, 0, 10, iprad=5, takets = [0, T/10, T/5, T*0.4, T*0.6, T*0.8, T])
+        print("######### RIGHT WAVE FUNCTION #########")
+        plot_pointG_1D_WF(model, L, T, 1, 0, 10, iprad=5, takets = [0, T/10, T/5, T*0.4, T*0.6, T*0.8, T])
+    else:
+        print("######### MIDDLE SPIN VECTOR #########")
+        plot_pointG_1D_vec(model, L, T, ip=hL, start_t=15, error_log=True)
 
-def runHN():
 
-    model = GenMulti({1:1j, -1:1}, 1, "HN")
-    plot_pointG_1D_tslope(model, 200, 50, ip=100, force_evolve=True)
+def run1DModels():
 
-def runModel3():
-    model = GenMulti({1:-(0.0455 + 0.9305j),
-          -1:0.3925 + 2.0955j,
-          2:0.112 + 0.0955j,
-          -2:-(0.088 - 1.0845j)}, 1, "Model3")
-    plot_pointG_1D_WF(model, 200, 50, 0, 0, 10, iprad=3, takets=[0, 1, 3, 5, 10, 20, 30], force_evolve=True)
+    L = 500
+    T = 30
+    T2 = 50
 
-def run2D():
+    run1Dmodel_everything(MODEL_1D_A, L, T)
+    MODEL_1D_Av1.OBCPBCSpec_1D()
+    MODEL_1D_Av2.OBCPBCSpec_1D()
 
-    """
-    ts0 = {
-        -2:-0.194+0.316j,
-        -1:-0.744-0.634j,
-        0: 0.315-0.55j,
-        1: 0.217+0.434j,
-        2: -0.346-0.488j
-    }
-    """
+    run1Dmodel_everything(MODEL_1D_B, L, T, comp=2)
+    run1Dmodel_everything(MODEL_1D_C, L, T)
+    run1Dmodel_everything(MODEL_1D_D, L, T2)
+    run1Dmodel_everything(MODEL_1D_Ev1, L, T)
+    run1Dmodel_everything(MODEL_1D_Ev2, L, T)
 
-    ts0 = {
-        1: 2j,
-        -1: 1/2
-    }
 
-    """
-    tsm = {
-        -1:-0.276-0.596j,
-        0: 0.777+0.996j,
-        1: -0.715-0.37j,
-    }
+def run2Dmodel_exp_slope (model, L, W, T):
 
-    tsp = {
-        -1:0.591-0.818j,
-        0: 0.008+0.979j,
-        1: -0.317+0.464j
-    }
-    """
-    tsm = {0:1}
-    tsp = {0:2j}
+    print("##################################")
+    print("NOW RUNNING:::")
+    print(model.name)
+    print("##################################")
 
-    model = GenHN2D(tsp, ts0, tsm, "2DHN")
-    sz1 = 500
-    sz2 = 1
+    hL = int(L/2)
+    hW = int(W/2)
 
-    plot_and_compare_2D_Edge(model, sz1, sz2, 50, kspan=0.05, k=0, force_evolve=True, Ns=sz1, edge="x+")
+    print("######### BULK EXPONENT #########")
+    plot_pointG_2D_exponent(model, L, W, T, ip=(hL, hW), sel_mode="inst")
+    print("######### EDGE EXPONENT #########")
+    plot_pointG_2D_exponent(model, L, W, T, ip=(0, hW), sel_mode="inst")
+    print("######### CORNER EXPONENT #########")
+    plot_pointG_2D_exponent(model, L, W, T, ip=(0,0), sel_mode="inst")
+    print("######### BULK SLOPE #########")
+    plot_pointG_2D_tslope(model, L, W, T, ip=(hL, hW))
+    print("######### EDGE SLOPE #########")
+    plot_pointG_2D_tslope(model, L, W, T, ip=(0, hW))
+    print("######### CORNER SLOPE #########")
+    plot_pointG_2D_tslope(model, L, W, T, ip=(0,0))
 
-def runExoticModel():
-    ts = {0:(-0.752 - 0.922j), -1: -(0.214 - 0.03j), 1:(0.282 + 0.625j)}
-    model = GenMulti(ts, 1, "from2D")
-    plot_pointG_1D_WF(model, 200, 50, 0, 0, 10, iprad=5, takets=[0, 1, 5, 10, 20, 30, 50], force_evolve=True)
-    plot_pointG_1D_WF(model, 200, 50, 1, 0, 10, iprad=5, takets=[0, 1, 5, 10, 20, 30, 50], force_evolve=True)
+
+def run2Dmodel_edge_eff (model, sz1, sz2, T, edges = ["x-"], kspan = 0.05, k = 0):
+
+    print("##################################")
+    print("NOW RUNNING:::")
+    print(model.name)
+
+    for edge in edges:
+        print(f"######### {edge} EDGE EFFECTIVE THEORY #########")
+
+        if edge.startswith("x"):
+            L = sz1
+            W = sz2
+        else:
+            L = sz2
+            W = sz1
+        plot_and_compare_2D_Edge(model, L, W, T, kspan=kspan, k=k, Ns=sz1, edge=edge, snapshots=[0, T/5, T*2/5, T*3/5, T*4/5, T])
+
+
+def run2DModels():
+
+    L = 200
+    W = 80
+    S = 120
+    T = 50
+
+    run2Dmodel_exp_slope(MODEL_2D_A, S, S, T)
+    run2Dmodel_exp_slope(MODEL_2D_B, S, S, T)
+    run2Dmodel_exp_slope(MODEL_2D_C, S, S, T)
+    run2Dmodel_edge_eff(MODEL_2D_A, L, W, T, edges=["x-","x+","y-","y+"], kspan=10)
+    run2Dmodel_edge_eff(MODEL_2D_B, L, W, T, edges=["x-","x+","y-","y+"], kspan=10)
+    run2Dmodel_edge_eff(MODEL_2D_C, L, W, T, edges=["x-","x+","y-","y+"], kspan=10)

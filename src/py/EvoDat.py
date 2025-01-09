@@ -114,6 +114,16 @@ class EvoDat1D:
         else:
             np.savez(filename, name = self.name, L = self.L, idof = self.idof, T = self.T, times = self.times, norms = self.norms, res = self.res)
 
+    def getNorms (self, force_numpy = True):
+        return cast_numpy(self.norms) if force_numpy else self.norms
+
+    def getRes (self, force_numpy = True):
+        return cast_numpy(self.res) if force_numpy else self.res
+
+    def getTimes (self, force_numpy = True):
+        return cast_numpy(self.times) if force_numpy else self.times
+
+
     def plot_growth (self, pt=None, ref = []):
         """
         Generate a plot of the growth rate of the magnitude of the wave function.
@@ -194,7 +204,7 @@ class EvoDat1D:
         Lsp = ceil(self.L/dpoints)
         Tsp = ceil(self.T/dpoints)
         times = self.times[::Tsp]
-        norm_datas = self.norms[::Tsp]
+        norm_datas = norm[::Tsp]
         xs = np.arange(self.L)[::Lsp]
         if show_range is not None:
             xs = xs[np.logical_and(xs >= show_range[0], xs < show_range[1])]
@@ -386,8 +396,8 @@ class EvoDat2D:
         fig = plt.figure(figsize=SQUARE_FIGSIZE)
 
         # The figure will be split into two parts, 
-        map_ax = plt.axes([0.1, 0.5, 0.9, 0.45])
-        norm_ax = plt.axes([0.1, 0.05, 0.8, 0.38])
+        map_ax = plt.axes([0.15, 0.55, 0.8, 0.40])
+        norm_ax = plt.axes([0.15, 0.08, 0.7, 0.35])
 
         # lp_init plots things on the lower panel that are persistent throughout the animation
         nmp = lower_panel_init(norm_ax)

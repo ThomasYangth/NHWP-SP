@@ -1,7 +1,7 @@
 import numpy as np
 
 # These functions are written by ChatGPT
-def rk45_step(func, t, y, h, tol=1e-6, ncp = np):
+def rk45_step(func, t, y, h, tol=1e-15, ncp = np):
     """
     Perform a single step of the RK45 method.
     
@@ -48,8 +48,10 @@ def rk45_step(func, t, y, h, tol=1e-6, ncp = np):
     error = ncp.linalg.norm(y_new - y_new_star, ord=ncp.inf)
     if error > tol:
         h_new = h * min(0.9 * (tol / error)**0.2, 1.0)
-    else:
+    elif error > 0:
         h_new = h * min(0.9 * (tol / error)**0.25, 1.5)
+    else:
+        h_new = h * 1.5
     
     return t + h, y_new, h_new
 

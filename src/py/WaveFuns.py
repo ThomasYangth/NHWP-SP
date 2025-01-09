@@ -25,7 +25,7 @@ def GaussianWave (bcs, center, radius, k = None, intvec = None):
         else:
             xs.append(np.fmod(coords[i].flatten()-center[i], abs(bcs[i])))
     try:
-        if radius == np.Infinity:
+        if radius == np.inf:
             for i in range(dim):
                 distmat += 1j*xs[i]*k[i]
         else:
@@ -37,7 +37,7 @@ def GaussianWave (bcs, center, radius, k = None, intvec = None):
             radius = [radius]*dim
         for i in range(dim):
             if radius[i] == 0: # Zero radius is a delta function
-                distmat[np.array(xs[i])!=0] += -np.Infinity
+                distmat[np.array(xs[i])!=0] += -np.inf
             else:
                 if bcs[i] > 0:
                     distmat += -xs[i]**2/(2*radius[i]**2) + 1j*xs[i]*k[i]

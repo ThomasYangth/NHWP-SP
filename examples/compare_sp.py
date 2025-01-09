@@ -108,10 +108,10 @@ def run2DModels():
     run2Dmodel_edge_eff(MODEL_2D_B, L, W, T, edges=["x-","x+","y-","y+"], kspan=10)
     run2Dmodel_edge_eff(MODEL_2D_C, L, W, T, edges=["x-","x+","y-","y+"], kspan=10)
 
-    run2Dmodel_edge_eff(MODEL_2D_A, L, W, T, edges=["x-","x+","y-","y+"], kspan=2)
-    run2Dmodel_edge_eff(MODEL_2D_B, L, W, T, edges=["x-","x+","y-","y+"], kspan=2)
-    run2Dmodel_edge_eff(MODEL_2D_C, L, W, T, edges=["x-","x+","y-","y+"], kspan=2)
+    run2Dmodel_edge_eff(MODEL_2D_A, L, W, T, edges=["x-","x+","y-","y+"], kspan=0.2)
+    run2Dmodel_edge_eff(MODEL_2D_B, L, W, T, edges=["x-","x+","y-","y+"], kspan=0.2)
+    run2Dmodel_edge_eff(MODEL_2D_C, L, W, T, edges=["x-","x+","y-","y+"], kspan=0.2)
     
-    run2Dmodel_edge_eff(MODEL_2D_A, L, W, T, edges=["x+","y+"], kspan=2, k=1)
-    run2Dmodel_edge_eff(MODEL_2D_B, L, W, T, edges=["x-","y-"], kspan=2, k=1)
-    run2Dmodel_edge_eff(MODEL_2D_C, L, W, T, edges=["x-","y-"], kspan=2, k=1)
+    run2Dmodel_edge_eff(MODEL_2D_A, L, W, T, edges=["x+","y+"], kspan=0.2, k=1)
+    run2Dmodel_edge_eff(MODEL_2D_B, L, W, T, edges=["x-","y-"], kspan=0.2, k=1)
+    run2Dmodel_edge_eff(MODEL_2D_C, L, W, T, edges=["x-","y-"], kspan=0.2, k=1)

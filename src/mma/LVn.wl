@@ -375,6 +375,7 @@ SPFlows[Heq_,dim_,v_:0,prec_:10,print_:True,zlvlgiven_:0,maxno_:0]:=
 					]&,
 					dim, prec
 				];
+				intg[[1]] = Round[intg[[1]]];
 				If[intg[[1]] != 0, curno++];
 				intg,
 				{0,"N/A"} (*If lambda >= zlvl, there is nothing to find*)

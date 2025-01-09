@@ -100,9 +100,15 @@ def run2DModels():
     S = 120
     T = 50
 
-    run2Dmodel_exp_slope(MODEL_2D_A, S, S, T)
-    run2Dmodel_exp_slope(MODEL_2D_B, S, S, T)
-    run2Dmodel_exp_slope(MODEL_2D_C, S, S, T)
-    run2Dmodel_edge_eff(MODEL_2D_A, L, W, T, edges=["x-","x+","y-","y+"], kspan=10)
-    run2Dmodel_edge_eff(MODEL_2D_B, L, W, T, edges=["x-","x+","y-","y+"], kspan=10)
-    run2Dmodel_edge_eff(MODEL_2D_C, L, W, T, edges=["x-","x+","y-","y+"], kspan=10)
+    # run2Dmodel_exp_slope(MODEL_2D_A, S, S, T)
+    # run2Dmodel_exp_slope(MODEL_2D_B, S, S, T)
+    # run2Dmodel_exp_slope(MODEL_2D_C, S, S, T)
+    #run2Dmodel_edge_eff(MODEL_2D_A, L, W, T, edges=["x-","x+","y-","y+"], kspan=10)
+    #run2Dmodel_edge_eff(MODEL_2D_B, L, W, T, edges=["x-","x+","y-","y+"], kspan=10)
+    #run2Dmodel_edge_eff(MODEL_2D_C, L, W, T, edges=["x-","x+","y-","y+"], kspan=10)
+    run2Dmodel_edge_eff(MODEL_2D_A, L, W, T, edges=["x-","x+","y-","y+"], kspan=2)
+    run2Dmodel_edge_eff(MODEL_2D_B, L, W, T, edges=["x-","x+","y-","y+"], kspan=2)
+    run2Dmodel_edge_eff(MODEL_2D_C, L, W, T, edges=["x-","x+","y-","y+"], kspan=2)
+    run2Dmodel_edge_eff(MODEL_2D_A, L, W, T, edges=["x+","y+"], kspan=2, k=1)
+    run2Dmodel_edge_eff(MODEL_2D_B, L, W, T, edges=["x-","y-"], kspan=2, k=1)
+    run2Dmodel_edge_eff(MODEL_2D_C, L, W, T, edges=["x-","y-"], kspan=2, k=1)

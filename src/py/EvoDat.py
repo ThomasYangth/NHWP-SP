@@ -530,6 +530,8 @@ class EvoDat2D:
             return nmp
 
         def lower_panel_update (norm_ax, t):
+            maxval = np.max([np.max(data[:,t]) for data in plotdatas])
+            norm_ax.set_ylim(0, min(1.1, maxval*2))
             return [norm_ax.plot(plotx, data[:,t], color=f"C{i}",
                         label=legends[i] if legends is not None else f"Line {i+1}")[0]
                         for i,data in enumerate(plotdatas)]

@@ -9,7 +9,7 @@ from matplotlib import colormaps
 from math import floor
 
 
-def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, ip = None, iprad = 0, ik = 0, start_t=5, addn="", precision = 0, plot_ax = None):
+def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, intvec=[], force_evolve = False, ip = None, iprad = 0, ik = 0, start_t=5, addn="", precision = 0, plot_ax = None):
     """
     For a 1D chain, do time evolution to extract G(x,x,t) at a point x.
     Try to compare |G(x,x,t)| to the theoretical prediction ~ t^{-a}exp(-i E_s t), where a is 1/2 in the bulk and 3/2 on the boundary.
@@ -24,6 +24,8 @@ def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, i
         The time to evolve to.
     dT: float
         The time step to use in the evolution.
+    intvec: list of floats
+        The spin vector for the initial wave function. Default [1,0,...0].
     force_evolve: bool
         Whether to force the evolution to be redone (i.e. not to read from existing files).
     ip: int
@@ -62,13 +64,13 @@ def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, i
         which_boundary = 1
         decay_exp = 3/2
 
+    if len(intvec) != model.int_dim:
+        intvec = [1]+[0]*(model.int_dim-1)
     if model.int_dim == 1:
         intvec = [1]
     else:
-        intvec = np.random.randn(model.int_dim) + 1j*np.random.randn(model.int_dim)
-        intvec = intvec / np.linalg.norm(intvec)
-
-    init = GaussianWave([L], (ip,), iprad, k = (ik,), intvec = intvec)
+        FName += f"_iv{intvec}"
+    intvec = np.array(intvec)
 
     try:
         if force_evolve:
@@ -173,7 +175,7 @@ def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, force_evolve = False, i
         plt.close()
 
 
-def plot_pointG_1D_exponent (model:HamModel, L, T, comp=1, dT=0.1, force_evolve = False, ip = None, iprad = 0, ik = 0, addn="", plotre=True, ploterr = False, sel_mode="inst", start_t = 5, orig_t = 2, precision = 0, plot_ax = None):
+def plot_pointG_1D_exponent (model:HamModel, L, T, comp=1, dT=0.1, intvec=[], force_evolve = False, ip = None, iprad = 0, ik = 0, addn="", plotre=True, ploterr = False, sel_mode="inst", start_t = 5, orig_t = 2, precision = 0, plot_ax = None):
     """
     For a 1D chain, do time evolution to extract G(x,x,t) at a point x.
     Try to compare G(x,x,t) to the theoretical prediction ~ \sum_{E_s} t^{-a}exp(-i E_s t), where a is 1/2 in the bulk and 3/2 on the boundary.
@@ -214,11 +216,13 @@ def plot_pointG_1D_exponent (model:HamModel, L, T, comp=1, dT=0.1, force_evolve 
     elif ip > 3*L/4:
         which_boundary = 1
 
+    if len(intvec) != model.int_dim:
+        intvec = [1]+[0]*(model.int_dim-1)
     if model.int_dim == 1:
         intvec = [1]
     else:
-        intvec = np.random.randn(model.int_dim) + 1j*np.random.randn(model.int_dim)
-        intvec = intvec / np.linalg.norm(intvec)
+        FName += f"_iv{intvec}"
+    intvec = np.array(intvec)
 
     init = GaussianWave([L], (ip,), iprad, k = (ik,), intvec = intvec)
 
@@ -435,6 +439,9 @@ def plot_pointG_1D_WF (model:HamModel, L, T, which_edge, depth, takerange, nsp=1
     ** FOR OTHER PARAMETERS SEE `plot_pointG_1D_tslope` **
     """
 
+    if model.int_dim != 1:
+        raise Exception("WaveFunction plotting available for one-band model only!")
+
     Ham = model([L])
     Hamname = model.name+(("_"+addn) if addn!="" else "")
     FName = "{}_WF_{}{}i{}_L{}T{}".format(Hamname, 'L' if which_edge<=0 else 'R', depth, ip, L, T)
@@ -449,17 +456,11 @@ def plot_pointG_1D_WF (model:HamModel, L, T, which_edge, depth, takerange, nsp=1
         left = 0
         right = takerange
 
-    if model.int_dim == 1:
-        intvec = [1]
-    else:
-        intvec = np.random.randn(model.int_dim) + 1j*np.random.randn(model.int_dim)
-        intvec = intvec / np.linalg.norm(intvec)
-
     if potential is None:
         potential = [0] * L*model.int_dim
     potential = np.diag(potential)
 
-    init = GaussianWave([L], (ip,), iprad, k = (ik,), intvec = intvec)
+    init = GaussianWave([L], (ip,), iprad, k = (ik,), intvec = [1])
 
     try:
         if force_evolve:
@@ -558,8 +559,8 @@ def plot_pointG_1D_WF (model:HamModel, L, T, which_edge, depth, takerange, nsp=1
 
 def plot_pointG_1D_WF_left (model:HamModel, L, T, which_edge, depth, takerange, nsp=1, dT=0.1, force_evolve = False, ip = 0, addn="", plot_ax = None, takets = [], precision = 0, potential = None):
     """
-    For a 1D chain, do time evolution to extract G(x,x0,t) for a given point x0 and a range of x.
-    Plot G(x,x0,t) as a function of x, and compare to theoretical expectations.
+    For a 1D chain, do time evolution to extract G(x0,x,t) for a given point x0 and a range of x.
+    Plot G(x0,x,t) as a function of x, and compare to theoretical expectations.
     Two plots will be generated, corresponding to the amplitude and phase respectively.
     In each plot, the actual wave function at different time steps is superimposed with the theoretical expectation.
 
@@ -586,6 +587,9 @@ def plot_pointG_1D_WF_left (model:HamModel, L, T, which_edge, depth, takerange, 
     ** FOR OTHER PARAMETERS SEE `plot_pointG_1D_tslope` **
     """
 
+    if model.int_dim != 1:
+        raise Exception("WaveFunction plotting available for one-band model only!")
+
     Ham = model([L])
     Hamname = model.name+(("_"+addn) if addn!="" else "")
     FName = "{}_WFL_{}{}i{}_L{}T{}".format(Hamname, 'L' if which_edge<=0 else 'R', depth, ip, L, T)
@@ -598,12 +602,6 @@ def plot_pointG_1D_WF_left (model:HamModel, L, T, which_edge, depth, takerange, 
         ip = depth
         left = 0
         right = takerange
-
-    if model.int_dim == 1:
-        intvec = [1]
-    else:
-        intvec = np.random.randn(model.int_dim) + 1j*np.random.randn(model.int_dim)
-        intvec = intvec / np.linalg.norm(intvec)
 
     if potential is None:
         potential = [0] * L*model.int_dim
@@ -619,7 +617,7 @@ def plot_pointG_1D_WF_left (model:HamModel, L, T, which_edge, depth, takerange, 
                 raise Exception()
             evodat = EvoDat1D.read(FN)
         except Exception:
-            init = GaussianWave([L], (istart,), 0.00001, k = (0,), intvec = intvec)
+            init = GaussianWave([L], (istart,), 0.00001, k = (0,), intvec = [1])
             evodat = EvoDat1D.from_evolve(Ham, T, dT, init, FN, precision=precision, potential=potential, return_idnorm = True)
             evodat.save()
 
@@ -695,8 +693,8 @@ def plot_pointG_1D_WF_left (model:HamModel, L, T, which_edge, depth, takerange, 
 
 def plot_pointG_1D_WF_onsite (model:HamModel, L, T, which_edge, depth, takerange, nsp=1, dT=0.1, force_evolve = False, ip = 0, addn="", plot_ax = None, takets = [], precision = 0, potential = None):
     """
-    For a 1D chain, do time evolution to extract G(x,x0,t) for a given point x0 and a range of x.
-    Plot G(x,x0,t) as a function of x, and compare to theoretical expectations.
+    For a 1D chain, do time evolution to extract G(x,x,t) for a range of x.
+    Plot G(x,x,t) as a function of x, and compare to theoretical expectations.
     Two plots will be generated, corresponding to the amplitude and phase respectively.
     In each plot, the actual wave function at different time steps is superimposed with the theoretical expectation.
 
@@ -723,6 +721,9 @@ def plot_pointG_1D_WF_onsite (model:HamModel, L, T, which_edge, depth, takerange
     ** FOR OTHER PARAMETERS SEE `plot_pointG_1D_tslope` **
     """
 
+    if model.int_dim != 1:
+        raise Exception("WaveFunction plotting available for one-band model only!")
+
     Ham = model([L])
     Hamname = model.name+(("_"+addn) if addn!="" else "")
     FName = "{}_WFL_{}{}i{}_L{}T{}".format(Hamname, 'L' if which_edge<=0 else 'R', depth, ip, L, T)
@@ -735,12 +736,6 @@ def plot_pointG_1D_WF_onsite (model:HamModel, L, T, which_edge, depth, takerange
         ip = depth
         left = 0
         right = takerange
-
-    if model.int_dim == 1:
-        intvec = [1]
-    else:
-        intvec = np.random.randn(model.int_dim) + 1j*np.random.randn(model.int_dim)
-        intvec = intvec / np.linalg.norm(intvec)
 
     if potential is None:
         potential = [0] * L*model.int_dim
@@ -756,7 +751,7 @@ def plot_pointG_1D_WF_onsite (model:HamModel, L, T, which_edge, depth, takerange
                 raise Exception()
             evodat = EvoDat1D.read(FN)
         except Exception:
-            init = GaussianWave([L], (istart,), 0.00001, k = (0,), intvec = intvec)
+            init = GaussianWave([L], (istart,), 0.00001, k = (0,), intvec = [1])
             evodat = EvoDat1D.from_evolve(Ham, T, dT, init, FN, precision=precision, potential=potential, return_idnorm = True)
             evodat.save()
 
@@ -900,7 +895,6 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve=False, ip = N
     Gratios = np.exp(amps+1j*phas)
 
     row = model.FirstEff()
-    E = row[1]
     vR = row[5]
     vL = row[6]
     if len(vR) > 1 or len(vL) > 1:
@@ -915,7 +909,7 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve=False, ip = N
 
     names = [
         [
-        [rf"$\mathrm{{Re}}[G_\{{{i+1},{j+1}}}(t) / G_{{1,1}}(t)]$", rf"$\mathrm{{Im}}[G_\{{{i+1},{j+1}}}(t) / G_{{1,1}}(t)]$"]
+        [rf"$\mathrm{{Re}}[G_{{{i+1},{j+1}}}(t) / G_{{1,1}}(t)]$", rf"$\mathrm{{Im}}[G_{{{i+1},{j+1}}}(t) / G_{{1,1}}(t)]$"]
          for j in range(B)
         ] for i in range(B)
         ]
@@ -931,10 +925,15 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve=False, ip = N
         plt.rcParams.update(**PLT_PARAMS)
         # Generate the plots
         if not error_log:
-            plt.figure(figsize=SINGLE_FIGSIZE, layout="constrained")
-            ax1 = plt.gca()
+            fig, axs = plt.subplots(2, 1, figsize=(SINGLE_FIGSIZE[0], SINGLE_FIGSIZE[1]*1.4), layout="constrained", height_ratios=[1,0.4])
+            # Generate a second axis in the bottom to make space for the legend
+            ax1 = axs[0]
+            axs[1].axis('off')
         else:
-            _, (ax1,ax2) = plt.subplots(1, 2, figsize=DOUBLE_FIGSIZE, layout="constrained")
+            fig, axs = plt.subplots(2, 2, figsize=(DOUBLE_FIGSIZE[0], DOUBLE_FIGSIZE[1]*1.4), layout="constrained", height_ratios=[1,0.4])
+            (ax1,ax2) = axs[0,:]
+            axs[1,0].axis('off')
+            axs[1,1].axis('off')
     else:
         if error_log:
             (ax1, ax2) = plot_ax
@@ -945,10 +944,15 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve=False, ip = N
 
     num = 0
 
+    theovals = []
+
     for i in range(B):
         for j in range(B):
             if i == 0 and j == 0:
                 continue
+
+            theovals.append(np.real(Gmat[i,j]/Gmat[0,0]))
+            theovals.append(np.imag(Gmat[i,j]/Gmat[0,0]))
 
             ax1.plot(times, np.real(Gratios[i,j,:]), color=f"C{num}", label=names[i][j][0])
             ax1.plot(times, [np.real(Gmat[i,j]/Gmat[0,0])]*len(times), color=f"C{num}", linestyle="--", label=theonames[i][j][0])
@@ -964,23 +968,33 @@ def plot_pointG_1D_vec (model:HamModel, L, T, dT=0.1, force_evolve=False, ip = N
 
             num += 1
 
+    maxtheovals = np.max(theovals)
+    mintheovals = np.min(theovals)
+    theorange = maxtheovals - mintheovals
+    ymax, ymin = ax1.get_ylim()
+    ax1.set_ylim([min(ymax, maxtheovals + theorange/2), max(ymin, mintheovals - theorange/2)])
+
     ax1.set_xlabel(r"$t$")
     ax1.set_ylabel(r"$G_{{i,j}}/G_{{1,1}}$")
     ax1.set_title(r"$G_{{i,j}}/G_{{1,1}}$")
-    ax1.legend()
+    # ax1.legend()
 
     if error_log:
         ax2.set_xlabel(r"$t$")
         ax2.set_ylabel("Error")
         ax2.set_title("Numerical v.s. Theory Error")
-        ax2.legend()
+        # ax2.legend()
 
     if plot_ax is None:
+        # Add legends to the bottom of the plot
+        handles, labels = ax1.get_legend_handles_labels()
+        fig.suptitle(f"Model {model.name} $L={L}, x={ip}$")
+        fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0, 0, 1, 0.22), ncol=4, mode="expand")
         plt.savefig(FName0+"_VEC.pdf")
         plt.close()
 
 
-def plot_pointG_2D_tslope (model:HamModel, L, W, T, dT=0.1, force_evolve = False, ip = None, iprad = 0, ik = (0,0), start_t=5, addn="", plot_ax = None):
+def plot_pointG_2D_tslope (model:HamModel, L, W, T, dT=0.1, intvec=[], force_evolve = False, ip = None, iprad = 0, ik = (0,0), start_t=5, addn="", plot_ax = None):
     """
     For a 2D system, do time evolution to extract G(x,x,t) at a point x.
     Try to compare |G(x,x,t)| to the theoretical prediction ~ t^{-a}exp(-i E_s t), where a is: 1 in the bulk, 2 on the edge, 3 in the corner.
@@ -1030,12 +1044,14 @@ def plot_pointG_2D_tslope (model:HamModel, L, W, T, dT=0.1, force_evolve = False
     if ip[1]<W/4 or ip[1]>3*W/4:
         decay_exp += 1
 
+    if len(intvec) != model.int_dim:
+        intvec = [1]+[0]*(model.int_dim-1)
     if model.int_dim == 1:
         intvec = [1]
     else:
-        intvec = np.random.randn(model.int_dim) + 1j*np.random.randn(model.int_dim)
-        intvec = intvec / np.linalg.norm(intvec)
-
+        FName += f"_iv{intvec}"
+    intvec = np.array(intvec)
+    
     init = GaussianWave([L, W], ip, iprad, k = ik, intvec = intvec)
 
     try:
@@ -1080,10 +1096,10 @@ def plot_pointG_2D_tslope (model:HamModel, L, W, T, dT=0.1, force_evolve = False
         plt.close()
 
 
-def plot_pointG_2D_exponent (model:HamModel, L, W, T, dT=0.1, force_evolve = False, ip = None, iprad = 0, ik = (0,0), addn="", plotre=True, ploterr = False, sel_mode="avg", start_t = 5, orig_t = 2, precision = 0, plot_ax = None):
+def plot_pointG_2D_exponent (model:HamModel, L, W, T, dT=0.1, intvec=[], force_evolve = False, ip = None, iprad = 0, ik = (0,0), addn="", plotre=True, ploterr = False, sel_mode="avg", start_t = 5, orig_t = 2, precision = 0, plot_ax = None):
     """
-    For a 1D chain, do time evolution to extract G(x,x,t) at a point x.
-    Try to compare G(x,x,t) to the theoretical prediction ~ \sum_{E_s} t^{-a}exp(-i E_s t), where a is 1/2 in the bulk and 3/2 on the boundary.
+    For a 2D system, do time evolution to extract G(x,x,t) at a point x.
+    Try to compare G(x,x,t) to the theoretical prediction ~ \sum_{E_s} t^{-a}exp(-i E_s t).
     Specifically, generates a plot of d/dt[log[G(x,x,t)*t^a]] v.s. t, and compares it to the theoretical prediction.
 
     Parameters:
@@ -1119,11 +1135,13 @@ def plot_pointG_2D_exponent (model:HamModel, L, W, T, dT=0.1, force_evolve = Fal
     if ip[1]<W/4 or ip[1]>3*W/4:
         decay_exp += 1
 
+    if len(intvec) != model.int_dim:
+        intvec = [1]+[0]*(model.int_dim-1)
     if model.int_dim == 1:
         intvec = [1]
     else:
-        intvec = np.random.randn(model.int_dim) + 1j*np.random.randn(model.int_dim)
-        intvec = intvec / np.linalg.norm(intvec)
+        FName += f"_iv{intvec}"
+    intvec = np.array(intvec)
 
     init = GaussianWave([L, W], ip, iprad, k = ik, intvec = intvec)
 
@@ -1252,6 +1270,9 @@ def plot_pointG_2D_exponent (model:HamModel, L, W, T, dT=0.1, force_evolve = Fal
 
 def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 0, ipdepth = 0, kspan = 0.1, dT=0.2, force_evolve = False, addname = "", snapshots = []):
 
+    if model2d.int_dim != 1:
+        raise Exception("2D edge comparison available for one-band model only!")
+    
     #tkdT = 0.25
     tkdT = None
 
@@ -1305,7 +1326,7 @@ def plot_and_compare_2D_Edge (model2d:HamModel, L, W, T, Ns = 0, edge="x-", k = 
     seldat = seldat**2
     seldat /= np.sum(seldat, axis=0)
 
-    print("Initial WP at t=0: ", seldat[:,0])
+    # print("Initial WP at t=0: ", seldat[:,0])
 
     # Construct the projected wave function in one dimension
     if para_edge == 0:

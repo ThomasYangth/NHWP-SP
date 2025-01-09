@@ -27,5 +27,3 @@ I run the codes by writing the function I want to run in a separate file (e.g. s
 `examples/compare_sp.py` contains function that generate various time-evolution plots presented in the paper.
 
 `examples/saddlepoints.nb` contains function that illustrate how to use the Mathematica scripts provided in `LV1.wl` and `LVn.wl` to calculate saddle points of a Hamiltonian.
-
-`examples/BZGD.nb` contains the code that generates the plots illustrating the Brillouin zone gradient descent method.

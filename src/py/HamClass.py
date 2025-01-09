@@ -60,9 +60,9 @@ def callMMA(*args):
     except Exception as e:
         raise Exception(f"Error occured during json loading: {e}\nOutput string:\n#####\n{output}\n#####")
 
-    print("CALLMMA RETURNED:\n#####\n")
-    print(output)
-    print("##########")
+    # print("CALLMMA RETURNED:\n#####\n")
+    # print(output)
+    # print("##########")
 
     # The Mathematica output has a headed nested list structure, we will parse it into Python list.
     def eliminateList(lst):
@@ -183,6 +183,7 @@ class HamModel:
             plt.scatter(np.real(valsp), np.imag(valsp), s=s2, label = "Relevant SP")
             plt.scatter(np.real(invalsp), np.imag(invalsp), s=s2, label = "Irrelevant SP")
         
+        plt.title(f"Model {self.name} Spectrum")
         plt.legend()
         plt.savefig(self.name+"OPSpec.pdf")
         plt.close()
@@ -738,7 +739,7 @@ class LatticeHam (HamModel):
 
             commands = ["wolframscript", evolve_script, pth, str(use_mathematica_precision), "{" + ", ".join(map(str, [t-times[0] for t in times[1:]])) + "}"]
             t1 = time()
-            print(f"Calling Mathematica for time evolution...", end = " ")
+            print(f"Calling Mathematica for time evolution...", end = " ", flush=True)
             output = runcmd(commands)
             output = output.decode("utf-8")
             if not output.startswith("Success"):

@@ -27,19 +27,18 @@ def run1Dmodel_everything (model, L, T, comp=1):
     plot_pointG_1D_tslope(model, L, T, ip=-1)
     if model.int_dim == 1:
         print("######### LEFT WAVE FUNCTION #########")
-        plot_pointG_1D_WF(model, L, T, 0, 0, 10, iprad=5, takets = [0, T/10, T/5, T*0.4, T*0.6, T*0.8, T])
+        plot_pointG_1D_WF(model, L, T, 0, 0, 10, iprad=5, takets = [0, T/10, T/5, T*0.4, T*0.6, T*0.8, T], precision=20)
         print("######### RIGHT WAVE FUNCTION #########")
-        plot_pointG_1D_WF(model, L, T, 1, 0, 10, iprad=5, takets = [0, T/10, T/5, T*0.4, T*0.6, T*0.8, T])
+        plot_pointG_1D_WF(model, L, T, 1, 0, 10, iprad=5, takets = [0, T/10, T/5, T*0.4, T*0.6, T*0.8, T], precision=20)
     else:
         print("######### MIDDLE SPIN VECTOR #########")
-        plot_pointG_1D_vec(model, L, T, ip=hL, start_t=15, error_log=True)
+        plot_pointG_1D_vec(model, L, T, ip=hL, start_t=5, error_log=True)
 
 
 def run1DModels():
 
     L = 500
     T = 30
-    T2 = 50
 
     run1Dmodel_everything(MODEL_1D_A, L, T)
     MODEL_1D_Av1.OBCPBCSpec_1D()
@@ -47,7 +46,7 @@ def run1DModels():
 
     run1Dmodel_everything(MODEL_1D_B, L, T, comp=2)
     run1Dmodel_everything(MODEL_1D_C, L, T)
-    run1Dmodel_everything(MODEL_1D_D, L, T2)
+    run1Dmodel_everything(MODEL_1D_D, L, 50)
     run1Dmodel_everything(MODEL_1D_Ev1, L, T)
     run1Dmodel_everything(MODEL_1D_Ev2, L, T)
 

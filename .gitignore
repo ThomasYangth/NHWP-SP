@@ -1,8 +1,0 @@
-Datas/
-slurmlogs/
-*.slurm
-*.pyc
-*/__pycache__/
-*.DS_Store
-Config*.json
-Test1DDatas/*

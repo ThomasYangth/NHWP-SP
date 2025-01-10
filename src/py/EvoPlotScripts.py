@@ -72,6 +72,8 @@ def plot_pointG_1D_tslope (model:HamModel, L, T, dT=0.1, intvec=[], force_evolve
         FName += f"_iv{intvec}"
     intvec = np.array(intvec)
 
+    init = GaussianWave([L], (ip,), iprad, k = (ik,), intvec = intvec)
+
     try:
         if force_evolve:
             raise Exception()
@@ -406,6 +408,107 @@ def plot_pointG_1D_exponent (model:HamModel, L, T, comp=1, dT=0.1, intvec=[], fo
     if plot_ax is None:
         fig.suptitle(f"Model {model.name} $L={L}, x={ip}$")
         plt.savefig(FName+sel_mode+".pdf")
+        plt.close()
+
+
+def plot_pointG_1D_spectro (model:HamModel, L, T, dT=0.1, correct_expo = 0, intvec=[], force_evolve = False, ip = None, iprad = 0, ik = 0, start_t=5, addn="", precision = 0, plot_ax = None):
+    """
+    For a 1D chain, do time evolution to extract G(x,x,t) at a point x.
+    Do a Fourier transform of G(x,x,t) to extract the spectrum of the system, and compare to relevant saddle point energies.
+
+    Parameters:
+
+    correct_expo: float
+        Default 0. If given, add a global damp exp(-correct_expo*t) to the Green's function to avoid divergence.
+    
+    For others see `plot_pointG_1D_tslope`.
+    """
+
+    Ham = model([L])
+    Hamname = model.name+(("_"+addn) if addn!="" else "")
+    FName = "{}_FG_L{}_T{}".format(Hamname, L, T)
+    if ip is None:
+        ip = int(L/2)
+    else:
+        FName += "_ip{}".format(ip)
+        if ip < 0:
+            ip = L+ip
+    FName += f"_r{iprad}k{ik}"
+
+    if len(intvec) != model.int_dim:
+        intvec = [1]+[0]*(model.int_dim-1)
+    if model.int_dim == 1:
+        intvec = [1]
+    else:
+        FName += f"_iv{intvec}"
+    intvec = np.array(intvec)
+    
+    init = GaussianWave([L], (ip,), iprad, k = (ik,), intvec = intvec)
+
+    try:
+        if force_evolve:
+            raise Exception()
+        evodat = EvoDat1D.read(FName)
+    except Exception:
+        evodat = EvoDat1D.from_evolve(Ham, T, dT, init, FName, precision=precision, return_idnorm=False)
+        evodat.save()
+
+    if plot_ax is None:
+        evodat.plot_profile()
+
+    Es = []
+
+    rows = model.SPFMMA()
+    for row in rows:
+        if row[3] != 0:
+            Es.append(row[1])
+
+    if len(Es) > 0 and np.imag(Es[0]) - correct_expo > 0:
+        print("***** WARNING *****")
+        print("Positive imaginary part in the spectrum!")
+        print("**********")
+
+    dats = evodat.getRes()[ip,0,:]
+    dats *= np.exp(evodat.getNorms())
+    if correct_expo != 0:
+        dats *= np.exp(-correct_expo * evodat.getTimes())
+    # Do the Fourier transform
+    fts = np.real(np.fft.fft(dats))
+    datlen = len(dats)
+    Tintv = evodat.getTimes()[1]-evodat.getTimes()[0]
+    omegas = np.arange(datlen) * 2*np.pi / (datlen*Tintv)
+    halflen = int(datlen/2)
+
+    if plot_ax is None:
+        plt.rcParams.update(**PLT_PARAMS)
+        plt.figure(figsize=SINGLE_FIGSIZE, layout="constrained")
+        ax = plt.gca()
+    else:
+        ax = plot_ax
+
+    omegas = omegas.flatten()
+    fts = fts.flatten()
+
+    ax.plot(np.hstack((omegas[halflen:]-2*np.pi/Tintv, omegas[:halflen])), np.hstack((fts[halflen:], fts[:halflen])), label="Numerical", color="C0")
+    ylims = ax.get_ylim()
+    for (i,E) in enumerate(Es):
+        ax.plot([-np.real(E), -np.real(E)], ylims, label=f"RSP #{i+1}", color=f"C{i+1}", linestyle="--")
+
+    xlims = ax.get_xlim()
+    Emin = -np.max(np.real(Es))
+    Emax = -np.min(np.real(Es))
+    print(Emin, Emax)
+    xleft = max(min(-1, 3*Emin-2*Emax), xlims[0])
+    xright = min(max(1, 3*Emax-2*Emin), xlims[1])
+    ax.set_xlim([xleft, xright])
+
+    ax.set_xlabel(r"$\omega$")
+    ax.set_ylabel(r"$\mathrm{Re} G(x,x;\omega)$")
+    ax.set_title(f"Model {model.name} $L={L}, x={ip}$")
+    ax.legend()
+
+    if plot_ax is None:
+        plt.savefig(FName+"_tSpec.pdf")
         plt.close()
 
 

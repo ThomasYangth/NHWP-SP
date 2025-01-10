@@ -50,6 +50,15 @@ def run1DModels():
     run1Dmodel_everything(MODEL_1D_Ev1, L, T)
     run1Dmodel_everything(MODEL_1D_Ev2, L, T)
 
+def tryRun():
+
+    L = 500
+    T = 30
+    plot_pointG_1D_spectro(MODEL_1D_A, L=L, T=T, ip=0, correct_expo = 2.5)
+    plot_pointG_1D_spectro(MODEL_1D_A, L=L, T=T, ip=250, correct_expo = 2.5)
+    plot_pointG_1D_spectro(MODEL_1D_C, L=L, T=T, ip=0, correct_expo = 0)
+    plot_pointG_1D_spectro(MODEL_1D_C, L=L, T=T, ip=250, correct_expo = 0)
+
 
 def run2Dmodel_exp_slope (model, L, W, T):
 

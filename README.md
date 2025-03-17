@@ -6,7 +6,7 @@ By Tian-Hua Yang [yangth@princeton.edu]
 
 This is a Python & Mathematica package to numerically perform time evolution of wave packets governed by non-Hermitian lattice Hamiltonians, and theoretically calculate the saddle points that would govern the long-time behavior of such evolutions.
 
-See our paper on arxiv: *T.-H. Yang and Chen Fang, Real time edge dynamics of non-Hermitian lattices*, arXiv:2503.xxxxx (to be posted soon). Please kindly cite it if you find this package helpful in your research.
+See our paper on arxiv: *T.-H. Yang and Chen Fang, Real time edge dynamics of non-Hermitian lattices*, [arXiv:2503.11505](http://arxiv.org/abs/2503.11505). Please kindly cite it if you find this package helpful in your research.
 
 ## Dependencies
 
